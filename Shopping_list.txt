@@ -1,0 +1,14 @@
+Shopping cart
+Lipo battery meter	€ 2.25	
+4 Pin Crowtail cable	€ 0.45	
+JST 2-pin cable	€ 1.25	
+128X64 OLED white i2c display module	€ 11.95	
+LED Tactile button white	€ 0.95	
+LED Tactile button red	€ 0.95	
+LED Tactile button green	€ 0.95	
+LED Tactile button yellow	€ 0.95	
+LED Tactile button blue	€ 0.95	
+Pin header female 40 pin	€ 0.25	
+Rotary encoder module	€ 2.45	
+Rotary encoder illuminates red green	€ 3.45	
+Water level switch angle	€ 2.45	
