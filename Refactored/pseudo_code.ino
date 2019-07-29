@@ -1,10 +1,23 @@
+const char *ssid =  "";
+const char *pass =  "";
+int moisture_level;
+uint16_t lux;
+unsigned long myChannelNumber = ;  // Replace the 0 with your channel number
+const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
+unsigned long delayTime;
+
 area 1: definitions
 
-include max1704x.h
-include bh1750.h
-include wifi.h
-include asyncwebserver.h
-include thingspeak.h
+#include <ESP8266WiFi.h>
+#include <BH1750FVI.h>
+#include <ThingSpeak.h>
+#include <Arduino.h>
+#include <U8x8lib.h>
+#include <Wire.h>
+#include <MAX17043.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+#include <asyncwebserver.h>
 
 area 2: Constants
 
@@ -27,12 +40,32 @@ temperature (float)
 pressure (float)
 humidity (float)
 
-Config_button = D4
-set pin D4, OUTPUT
+//possible to retreive this?
+//Or set the monitor 1 meter above ground?
+#define SEALEVELPRESSURE_HPA (1021)
 
-Motor = D3
-set pin D3, OUTPUT
-set pin D3, LOW
+Adafruit_BME280 bme; // I2C
+// Create the Lightsensor instance
+BH1750FVI LightSensor(BH1750FVI::k_DevModeContLowRes);
+
+//Set oled driver
+U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE);
+
+//define moisture sensor
+moisture_power = D3
+set pin moisture_power, OUTPUT
+set pin moisture_power, LOW
+moisture_sensor = A0
+set pin moisture_sensor, INPUT
+
+//define config_button
+Config_button = D5
+set pin Config_button, INPUT
+
+//Define motor pin and set it
+Motor = D4
+set pin Motor, OUTPUT
+set pin Motor, LOW
 
 #wifi if off
 #i2c are off (max17943/bh1750/bme280)
@@ -47,7 +80,10 @@ reset_mode(){
 }		
 
 read_soil_moisture();{
-	read A0 //moisture_level
+	//enable moisture sensor
+	set moisture_power HIGH
+	read moisture_sensor //moisture_level
+	set moisture_power LOW
 }
 
 //check whether the soil moisture is below set level
@@ -55,11 +91,11 @@ read_soil_moisture();{
 //for it to reach the desired level. 
 water_plant{
 	if moisture_level < desired_moisture_level{
-		set pin D3, HIGH
+		set Motor, HIGH
     while moisture_level < desired_moisture_level do {
 			read_soil_moisture();
 			}
-		set pin D3, LOW
+		set Motor, LOW
 	}
 }
 
