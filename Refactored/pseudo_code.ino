@@ -1,12 +1,4 @@
-const char *ssid =  "";
-const char *pass =  "";
-int moisture_level;
-uint16_t lux;
-unsigned long myChannelNumber = ;  // Replace the 0 with your channel number
-const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
-unsigned long delayTime;
-
-area 1: definitions
+//area 1: definitions
 
 #include <ESP8266WiFi.h>
 #include <BH1750FVI.h>
@@ -19,7 +11,7 @@ area 1: definitions
 #include <Adafruit_BME280.h>
 #include <asyncwebserver.h>
 
-area 2: Constants
+//area 2: Constants
 
 //all nodes()
 battery_percent (float)
@@ -28,13 +20,15 @@ wifi_ssid (string)
 wifi_password (string)
 	
 //remote node
+unsigned long delayTime;
 moisture_level (int)
-lux_level (int)
+lux_level (uint16_4)
 plant_name (string)
 set_mousture_level (int)
-Thingspeak_API_key (string)
+//Thingspeak
+unsigned long myChannelNumber = ;  // Replace the 0 with your channel number
+const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
 
-	
 //central node
 temperature (float)
 pressure (float)
