@@ -42,7 +42,7 @@ water_plant{
 	if moisture_level < desired_moisture_level{
 		set pin D3, HIGH
     while moisture_level < desired_moisture_level do {
-			read A0 //moisture_level
+			read_soil_moisture();
 			}
 		set pin D3, LOW
 	}
@@ -52,7 +52,7 @@ light_sensor(){
 bh1750.begin(one_time_value)
 }
 
-begin.wifi(){
+wifi.begin(){
 //has wifi already been setup?
 //if not, run the special set up wizard.
 //use this web page to add/remove or enable/disable certain sensors	
@@ -61,7 +61,24 @@ begin.wifi(){
 //	enable max17403 {i2c address}
 //	enable bme280 {i2c address}
 // use oled/webpage to show i2c addresses.
-	
+//
+// use this webpage to enter API keys/URL for content upload
+
+startup mode
+	is there a crc checksum for the wifi?
+	>yes
+		has the config button been pressed?
+		>yes
+			disable sleep
+			run wifi.setup wizard (ADHOC mode) 
+			populate the fields from memory.
+		>no
+			load the wifi settings 
+	>no
+		disable sleep
+		run the wifi.setup wizard (ADHOC mode)
+restart the MCU 
+		
 Upload_data(){
 	wifi.enable;
 	send data to MQTT / ThingSpeak
@@ -74,7 +91,6 @@ deep_sleep{
 
 >[Start loop]{
 begin.serial;
-reset_mode;
 wifi.begin;
 Read light_sensor
 Read soil_moisture
