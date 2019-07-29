@@ -86,7 +86,13 @@ read_soil_moisture();{
 	//enable moisture sensor
 	set moisture_power HIGH
 	read moisture_sensor //moisture_level
-	set moisture_power LOW
+	//to stop the plant being over flowed if the sensor stops working
+	//so we set a min value to check if the sensor is inserted.
+	is moisture_sensor > min_moisture_value?
+	>Yes
+		set moisture_power LOW
+	>No
+		set moisture_sensor 1023
 }
 
 //check whether the soil moisture is below set level
@@ -95,7 +101,7 @@ read_soil_moisture();{
 water_plant{
 	if moisture_level < desired_moisture_level{
 		set Motor, HIGH
-    while moisture_level < desired_moisture_level do {
+    		while moisture_level < desired_moisture_level do {
 			read_soil_moisture();
 			}
 		set Motor, LOW
