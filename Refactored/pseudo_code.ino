@@ -17,6 +17,7 @@
 //BME280 (Temp,Humidity,Pressure)
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <Wire.h>
 //BH1750 (Lux)
 #include <BH1750FVI.h>
 //Battery Sensor (Volts,%)
@@ -55,7 +56,7 @@ humidity (float)
 Adafruit_BME280 bme; // I2C
 
 // Create the Lightsensor instance
-BH1750FVI LightSensor(BH1750FVI::k_DevMode_onetime_LowRes);
+BH1750 lightMeter(0x23);
 
 //Set oled driver
 U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE);
@@ -122,7 +123,9 @@ water_plant{
 }
 
 light_sensor(){
-lux_level = bh1750.read()
+Wire.begin();
+lightMeter.begin(BH1750::ONE_TIME_HIGH_RES_MODE)
+float lux_level = lightMeter.readLightLevel();
 }
 
 wifi.config(){
