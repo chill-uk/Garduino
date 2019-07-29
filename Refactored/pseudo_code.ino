@@ -1,22 +1,37 @@
 area 1: definitions
 
+include max1704x.h
+include bh1750.h
+include wifi.h
+include asyncwebserver.h
+include thingspeak.h
+
 area 2: Constants
 
-//all nodes
+//all nodes()
 battery_percent (float)
 battery_capacity (float)
-
+wifi_ssid (string)
+wifi_password (string)
+	
 //remote node
 moisture_level (int)
-
-//remote nodes
 lux_level (int)
+plant_name (string)
+set_mousture_level (int)
+Thingspeak_API_key (string)
 
+	
 //central node
 temperature (float)
 pressure (float)
 humidity (float)
 
+Config_button = D4
+set pin D4, OUTPUT
+
+Motor = D3
+set pin D3, OUTPUT
 set pin D3, LOW
 
 #wifi if off
