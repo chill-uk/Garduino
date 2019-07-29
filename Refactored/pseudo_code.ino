@@ -39,8 +39,9 @@ humidity (float)
 #define SEALEVELPRESSURE_HPA (1021)
 
 Adafruit_BME280 bme; // I2C
+
 // Create the Lightsensor instance
-BH1750FVI LightSensor(BH1750FVI::k_DevModeContLowRes);
+BH1750FVI LightSensor(BH1750FVI::k_DevMode_onetime_LowRes);
 
 //Set oled driver
 U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE);
@@ -52,18 +53,34 @@ set pin moisture_power, LOW
 moisture_sensor = A0
 set pin moisture_sensor, INPUT
 
-//define config_button
-Config_button = D5
-set pin Config_button, INPUT
-
 //Define motor pin and set it
 Motor = D4
 set pin Motor, OUTPUT
 set pin Motor, LOW
 
-#wifi if off
+//define config_button
+Config_button = D5
+set pin Config_button, INPUT
+
+#wifi is off
 #i2c are off (max17943/bh1750/bme280)
 #Analogue is off 
+
+read_battery_level{
+	wake_sensor
+	read_battery_percentage
+	read_battery_capacity
+	sleep_sensor
+	}
+
+check_battery_level{
+	is battery level > min_battery_value?
+		>yes
+			continue
+		>no
+			change update interval to 4 hours
+			send http warning - battery needs charging/replaced
+			sleep;
 
 read_soil_moisture();{
 	//enable moisture sensor
@@ -86,12 +103,10 @@ water_plant{
 }
 
 light_sensor(){
-bh1750.begin(one_time_value)
+lux_level = bh1750.read()
 }
 
-wifi.begin(){
-//has wifi already been setup?
-//if not, run the special set up wizard.
+wifi.config(){
 //use this web page to add/remove or enable/disable certain sensors	
 //i.e. 
 //	enable bh1750 {mode} {sensitivity} {i2c address}
@@ -102,36 +117,34 @@ wifi.begin(){
 // use this webpage to enter API keys/URL for content upload
 
 startup mode
-	is there a crc checksum for the wifi?
+	has the config button been pressed?
 	>yes
-		has the config button been pressed?
-		>yes
-			disable sleep
-			run wifi.setup wizard (ADHOC mode) 
-			populate the fields from memory.
-		>no
-			load the wifi settings 
+		//disable sleep
+		run wifi.setup wizard (ADHOC mode)
+		//wifi.name should be the dns.name
+		populate the fields from memory.
 	>no
-		disable sleep
-		run the wifi.setup wizard (ADHOC mode)
-restart the MCU 
+		continue
 		
 Upload_data(){
 	wifi.enable;
 	send data to MQTT / ThingSpeak
+	//battery,lux,moisture,temp,humidity,pressure
 	wifi.disable;
 }
 
 deep_sleep{
 	sleep for x mins
-]
+}
 
 >[Start loop]{
-begin.serial;
-wifi.begin;
-Read light_sensor
-Read soil_moisture
+//begin.serial;
+check_battery_level;
+wifi.config;
+Read light_sensor;
+Read soil_moisture;
 water_plant;
+wifi.begin;
 Upload_data;
 Deep_sleep;
 }
