@@ -1,15 +1,29 @@
 //area 1: definitions
-
-#include <ESP8266WiFi.h>
-#include <BH1750FVI.h>
-#include <ThingSpeak.h>
+//ESP Wifi libraries
 #include <Arduino.h>
-#include <U8x8lib.h>
-#include <Wire.h>
-#include <MAX17043.h>
+#include <ESP8266WiFi.h>          //ESP8266 Core WiFi Library (you most likely already have this in your sketch)
+#include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
+#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
+#include <asyncwebserver.h>
+
+//TZAPU Captive portal
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+
+//ThingSpeak library to upload data
+#include <ThingSpeak.h>
+
+//sensors
+//
+//BME280 (Temp,Humidity,Pressure)
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include <asyncwebserver.h>
+//BH1750 (Lux)
+#include <BH1750FVI.h>
+//Battery Sensor (Volts,%)
+#include <MAX17043.h>
+
+//Screens
+#include <U8x8lib.h>
 
 //area 2: Constants
 
@@ -89,10 +103,9 @@ read_soil_moisture();{
 	//to stop the plant being over flowed if the sensor stops working
 	//so we set a min value to check if the sensor is inserted.
 	is moisture_sensor > min_moisture_value?
-	>Yes
-		set moisture_power LOW
-	>No
-		set moisture_sensor 1023
+	>No{set moisture_sensor 1023}
+	>Yes{}
+	set moisture_power LOW
 }
 
 //check whether the soil moisture is below set level
