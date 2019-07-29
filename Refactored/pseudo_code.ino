@@ -65,14 +65,6 @@ set pin Motor, LOW
 #i2c are off (max17943/bh1750/bme280)
 #Analogue is off 
 
-reset_mode(){
-	find out how to turn on the MCU based on a button press
-	if button pressed for 3 seconds {
-		beep
-		reset wifi settings;
-	}
-}		
-
 read_soil_moisture();{
 	//enable moisture sensor
 	set moisture_power HIGH
