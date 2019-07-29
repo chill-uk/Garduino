@@ -53,9 +53,15 @@ bh1750.begin(one_time_value)
 }
 
 begin.wifi(){
-has wifi already been setup?
-if not, run the special set up wizard.
-
+//has wifi already been setup?
+//if not, run the special set up wizard.
+//use this web page to add/remove or enable/disable certain sensors	
+//i.e. 
+//	enable bh1750 {mode} {sensitivity} {i2c address}
+//	enable max17403 {i2c address}
+//	enable bme280 {i2c address}
+// use oled/webpage to show i2c addresses.
+	
 Upload_data(){
 	wifi.enable;
 	send data to MQTT / ThingSpeak
