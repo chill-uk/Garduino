@@ -4,37 +4,74 @@
 */
 
 #include <ESP8266WiFi.h>
+//BH1750 (Lux)
+#include <BH1750FVI.h>
+#include <Wire.h>
 
 #ifndef STASSID
 #define STASSID ""
 #define STAPSK  ""
 #endif
 
+//wifi settings
 const char* ssid     = STASSID;
 const char* password = STAPSK;
+
+//site to test connectivity
 const char* host = "djxmmx.net";
 const uint16_t port = 17;
 
+//defining variable types
+int moisture_level;
+uint16_t lux_level;
+unsigned long myChannelNumber = ;  // Replace the 0 with your channel number
+const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
+unsigned long delayTime;
+
+//BH1750 reading function
+void light_sensor() {
+  //initializes wire library
+  Wire.begin();
+  //initializes the light sensor in ONE_TIME_HIGH_RES_MODE
+  lightMeter.begin(BH1750::ONE_TIME_HIGH_RES_MODE)
+  //reads the light value and then it should shut down
+  lux_level = LightSensor.GetLightIntensity();
+  //prints the value to serial console
+  Serial.print("Light: ");
+  Serial.println(lux_level);
+}
+
 void setup() {
 
-WiFi.mode( WIFI_OFF );
-WiFi.forceSleepBegin();
-delay( 1 );
+  //make sure the wifi is off on the first boot
+  //not sure how effective this is as it only makes a difference on a cold boot
+  WiFi.mode(WIFI_OFF);
+  WiFi.forceSleepBegin();
+  delay(1);
 
+  //initializes serial output
   Serial.begin(115200);
 
-  // We start by connecting to a WiFi network
-  
+  //debug output displaying the wifi is disabled
   Serial.println();
   Serial.println("Wifi disabled");
   delay(5000);
-  
+
+  //time to read the light value and store it
+  Serial.println();
+  Serial.println("Reading Light value");
+  light_sensor();
+  delay(5000);  
+
+  //now that we have read the light value we can upload it
+  //to do this, we must turn on the wifi.
+  Serial.print("Turining on wifi");
+  WiFi.forceSleepWake();
+  delay(5000);
+
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
-
-  WiFi.forceSleepWake();
-  delay( 1 );
   /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
      would try to act as both a client and an access-point and could cause
      network-issues with your other WiFi-devices on your WiFi-network. */
@@ -95,11 +132,10 @@ void loop() {
   Serial.println();
   Serial.println("closing connection");
   client.stop();
-  WiFi.disconnect( true );
-  delay( 1 );
+  WiFi.disconnect(true);
+  delay(1);
 
   // WAKE_RF_DISABLED to keep the WiFi radio disabled when we wake up
   Serial.println("I'm awake, but I'm going into deep sleep mode for 15 seconds");
-  ESP.deepSleep( 15e6, WAKE_RF_DISABLED );
-  //delay(300000); // execute once every 5 minutes, don't flood remote service
+  ESP.deepSleep(15e6, WAKE_RF_DISABLED);
 }
