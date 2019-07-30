@@ -13,6 +13,8 @@
 #define STAPSK  ""
 #endif
 
+BH1750FVI LightSensor(BH1750FVI::k_DevModeOneTimeHighRes);
+
 //wifi settings
 const char* ssid     = STASSID;
 const char* password = STAPSK;
@@ -24,8 +26,8 @@ const uint16_t port = 17;
 //defining variable types
 int moisture_level;
 uint16_t lux_level;
-unsigned long myChannelNumber = ;  // Replace the 0 with your channel number
-const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
+//unsigned long myChannelNumber = ;  // Replace the 0 with your channel number
+//const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
 unsigned long delayTime;
 
 //BH1750 reading function
@@ -33,7 +35,7 @@ void light_sensor() {
   //initializes wire library
   Wire.begin();
   //initializes the light sensor in ONE_TIME_HIGH_RES_MODE
-  lightMeter.begin(BH1750::ONE_TIME_HIGH_RES_MODE)
+  LightSensor.begin();
   //reads the light value and then it should shut down
   lux_level = LightSensor.GetLightIntensity();
   //prints the value to serial console
