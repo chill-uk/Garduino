@@ -13,7 +13,7 @@
 #define STAPSK  ""
 #endif
 
-MAX17043 fuelGauge(20,4); //not sure what this is for.
+// MAX17043 fuelGauge(20,4); //alert threshold, alert pin - not needed.
 BH1750FVI LightSensor(BH1750FVI::k_DevModeOneTimeHighRes);
 Adafruit_BME280 bme;
 
