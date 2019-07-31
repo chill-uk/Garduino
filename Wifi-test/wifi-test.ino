@@ -27,10 +27,11 @@ const uint16_t port = 17;
 
 //min return value of the moisture sensor to confirm it's working.
 const int min_moisture_level = 200;
+const int desired_moisture_level = 700;
 const double SLEEP_TIME = 15e6;
 
 //define sea level Pressure
-//SEALEVELPRESSURE_HPA = (get fom open waether map)
+//SEALEVELPRESSURE_HPA = (get fom open weather map)
 
 //defining variable types
 int moisture_level;
@@ -69,27 +70,44 @@ void light_sensor() {
   Serial.println(lux_level);
 }
 
+//Do we need to water the plant?
+void water_plant() {
+ 	if (moisture_level < desired_moisture_level) {
+  	Serial.print("Watering plant");
+    digitalWrite(Motor_Pin, HIGH)
+ 		while (moisture_level < desired_moisture_level) do {
+			moisture_level = analogRead(Moisture_Pin);  // read the input pin
+		}    
+ 	  digitalWrite(Motor_Pin, LOW)
+    Serial.print("Plant watered");
+  }
+}
+
 //Moisture reading function
 void moisture_sensor() {
   Serial.println();
   Serial.println("Reading Moisture value");
   //wake up sensor
-  digitalWrite(Moisture_Power_Pin, HIGH) // Sets the input state to GND
+  digitalWrite(Moisture_Power_Pin, HIGH) // Sets the input state to 3.3V
   //read sensor values
   moisture_level = analogRead(Moisture_Pin);  // read the input pin
-  //sleep sensor
-  digitalWrite(Moisture_Power_Pin, LOW) // Sets the input state to GND
 
   /* if the moisture sensor fails, we don't want the motor turning on all
   of the time. So we check against a minimum set value.
-  If that threshold is missed, we default the moisture level to the max value. */
+  If that threshold is missed, we set the default moisture level to the max. */
 
   Serial.print("Moisture: ");
   if (moisture_level < min_moisture_level) {
     moisture_level = 1023;
     Serial.println("ERROR");
     }
-  else {Serial.println(moisture_level);} // debug value
+  else {
+    water_plant();
+    Serial.println(moisture_level); // Print the current moisture value
+  }
+  
+  //sleep the sensor
+  digitalWrite(Moisture_Power_Pin, LOW) // Sets the input state to GND
 }
 
 //MAX17043 reading function
