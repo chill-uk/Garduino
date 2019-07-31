@@ -24,25 +24,27 @@ const char* password = STAPSK;
 //TESTING CODE
 //site to test connectivity
 const char* host = "djxmmx.net";
-const uint16_t port = 17;
+const int port = 17;
 
 //min return value of the moisture sensor to confirm it's working.
 const int min_moisture_level = 200;
 const int desired_moisture_level = 700;
 const double SLEEP_TIME = 15e6;
+const double DELAY_TIME = 5000;
 
 //define sea level Pressure
 //SEALEVELPRESSURE_HPA = (get fom open weather map)
 
 //defining variable types
 int moisture_level;
-uint16_t lux_level;
+int lux_level;
+boolean config_mode_enabled;
 //unsigned long myChannelNumber = ; // Replace the 0 with your channel number
 //const char * myWriteAPIKey = "";  // Paste your ThingSpeak Write API Key between the quotes
 //unsigned long delayTime;          //don't need this.
 
-int Moisture_Pin = A0; // Sets the Analog input to A0
-int Config_Pin = D3;  // Config button connected to digital pin D3
+int Moisture_Pin = A0; // Sets the Moitsure input to A0
+int Config_Pin = D3;  // Configuration button connected to digital pin D3
 int Motor_Pin = D4;    // Motor enable circuit connected to digital pin D4
 int Moisture_Power_Pin = D5 // Pin to power moisture sensor so that it's not on all of the time
 
@@ -208,7 +210,7 @@ void bme_sensor(){
 void enable_wifi() {
   Serial.print("Turining on wifi");
   WiFi.forceSleepWake();
-  delay(5000);
+  delay(DELAY_TIME);
 
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -294,34 +296,44 @@ void deep_sleep() {
   ESP.deepSleep(SLEEP_TIME, WAKE_RF_DISABLED);
 }
 
+void config_mode() {
+  while (Config_Pin = HIGH) {
+    delay(5000);
+    config_mode_enabled = true;
+  }
+}
+
 void setup() {
 
   //initializes serial output
   Serial.begin(115200);
   define_pins();
 
+  //debug output displaying the wifi is disabled
+  disable_wifi_on_boot();
+  delay(DELAY_TIME);
+
+  //do we enter config_mode?
+  config_mode();
+
   // Only needed in forced mode! In normal mode, you can remove the next line.
   bme.takeForcedMeasurement(); // has no effect in normal mode
 
-  //debug output displaying the wifi is disabled
-  disable_wifi_on_boot();
-  delay(5000);
-
   //time to read the moisture value and store it
   moisture_sensor();
-  delay(5000);  
+  delay(DELAY_TIME);  
 
   //time to read the light value and store it
   light_sensor();
-  delay(5000); 
+  delay(DELAY_TIME); 
 
   //time to read the bme values and store them
   bme_sensor();
-  delay(5000);  
+  delay(DELAY_TIME);  
 
   //time to read the battery values and store them
   battery_sensor();
-  delay(5000);
+  delay(DELAY_TIME);
 
   //now that we have read the sensor values we can upload it
   //to do this, we must turn on the wifi.
