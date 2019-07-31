@@ -13,6 +13,7 @@
 #define STAPSK  ""
 #endif
 
+MAX17043 fuelGauge(20,4); //not sure what this is for.
 BH1750FVI LightSensor(BH1750FVI::k_DevModeOneTimeHighRes);
 Adafruit_BME280 bme;
 
@@ -112,11 +113,29 @@ void moisture_sensor() {
 
 //MAX17043 reading function
 void battery_sensor() {
+  //initializes the battery sensor
+  fuelGauge.begin();
+  //wake up sensor
+  Serial.println("Waking...");
+  fuelGauge.wake();
   Serial.println();
   Serial.println("Reading battery capacity and percentage values");
-  //wake up sensor
   //read sensor values
+  Serial.print("Version: ");
+  Serial.println(fuelGauge.getVersion());
+  Serial.print("Alert Threshold: ");
+  Serial.println(fuelGauge.getAlertThreshold());
+  Serial.print("Alert Threshold Register Version: ");
+  Serial.println(fuelGauge.getAlertThresholdRegister());
+  Serial.print("Battery Voltage: ");
+  Serial.println(fuelGauge.getBatteryVoltage());
+  Serial.print("Battery Percentage: ");
+  Serial.println(fuelGauge.getBatteryPercentage());
+  Serial.print("Is Alerting? ");
+  Serial.println(fuelGauge.isAlerting());
   //sleep sensor
+  Serial.println("Sleeping...");
+  fuelGauge.sleep();
 }
 
 //BME280 reading function
@@ -127,14 +146,14 @@ void bme_sensor(){
   //initializes the BME280 sensor in normal mode.
   bme.begin();
 
-  Serial.println("normal mode, 16x oversampling for all, filter off,");
-  Serial.println("0.5ms standby period");
+  // Standard monitoring mode
+  // Serial.println("normal mode, 16x oversampling for all, filter off,");
+  // Serial.println("0.5ms standby period");
 
-/*
   // weather monitoring
-  Serial.println("-- Weather Station Scenario --");
-  Serial.println("forced mode, 1x temperature / 1x humidity / 1x pressure oversampling,");
-  Serial.println("filter off");
+  // Serial.println("-- Weather Station Scenario --");
+  // Serial.println("forced mode, 1x temperature / 1x humidity / 1x pressure oversampling,");
+  // Serial.println("filter off");
   bme.setSampling(Adafruit_BME280::MODE_FORCED,
                   Adafruit_BME280::SAMPLING_X1, // temperature
                   Adafruit_BME280::SAMPLING_X1, // pressure
@@ -142,8 +161,8 @@ void bme_sensor(){
                   Adafruit_BME280::FILTER_OFF   );
                       
   // suggested rate is 1/60Hz (1m)
-
-  // indoor navigation
+ 
+  /* indoor navigation
   Serial.println("-- Indoor Navigation Scenario --");
   Serial.println("normal mode, 16x pressure / 2x temperature / 1x humidity oversampling,");
   Serial.println("0.5ms standby period, filter 16x");
@@ -175,9 +194,9 @@ void bme_sensor(){
   Serial.print(bme.readPressure() / 100.0F);
   Serial.println(" hPa");
 
-  // Serial.print("Approx. Altitude = ");
-  // Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-  // Serial.println(" m");
+  Serial.print("Approx. Altitude = ");
+  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
+  Serial.println(" m");
 
   Serial.print("Humidity = ");
   Serial.print(bme.readHumidity());
