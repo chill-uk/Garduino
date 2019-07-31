@@ -33,7 +33,7 @@ const double SLEEP_TIME = 15e6;
 const double DELAY_TIME = 5000;
 
 //define sea level Pressure
-//SEALEVELPRESSURE_HPA = (get fom open weather map)
+int SEALEVELPRESSURE_HPA = 1010;
 
 //defining variable types
 int moisture_level;
@@ -46,16 +46,16 @@ boolean config_mode_enabled;
 int Moisture_Pin = A0; // Sets the Moitsure input to A0
 int Config_Pin = D3;  // Configuration button connected to digital pin D3
 int Motor_Pin = D4;    // Motor enable circuit connected to digital pin D4
-int Moisture_Power_Pin = D5 // Pin to power moisture sensor so that it's not on all of the time
+int Moisture_Power_Pin = D5; // Pin to power moisture sensor so that it's not on all of the time
 
 void define_pins() {
   pinMode(Motor_Pin, OUTPUT);  // sets the digital pin D4 as output
-  digitalWrite(Motor_Pin, LOW) // Sets the input state to GND
+  digitalWrite(Motor_Pin, LOW); // Sets the input state to GND
   pinMode(Config_Pin, INPUT);  // sets the digital pin D3 as input
-  digitalWrite(Config_Pin, LOW) // Sets the input state to GND
+  digitalWrite(Config_Pin, LOW); // Sets the input state to GND
   pinMode(Moisture_Pin, INPUT);  // sets the Analog pin A0 as input
   pinMode(Moisture_Power_Pin, OUTPUT);  // sets the digital pin D5 as output
-  digitalWrite(Moisture_Power_Pin, LOW) // Sets the input state to GND
+  digitalWrite(Moisture_Power_Pin, LOW); // Sets the input state to GND
 }
 
 //BH1750 reading function
@@ -77,11 +77,11 @@ void light_sensor() {
 void water_plant() {
  	if (moisture_level < desired_moisture_level) {
   	Serial.print("Watering plant");
-    digitalWrite(Motor_Pin, HIGH)
- 		while (moisture_level < desired_moisture_level) do {
+    digitalWrite(Motor_Pin, HIGH);
+ 		while (moisture_level < desired_moisture_level) {
 			moisture_level = analogRead(Moisture_Pin);  // read the input pin
 		}    
- 	  digitalWrite(Motor_Pin, LOW)
+ 	  digitalWrite(Motor_Pin, LOW);
     Serial.print("Plant watered");
   }
 }
@@ -91,7 +91,7 @@ void moisture_sensor() {
   Serial.println();
   Serial.println("Reading Moisture value");
   //wake up sensor
-  digitalWrite(Moisture_Power_Pin, HIGH) // Sets the input state to 3.3V
+  digitalWrite(Moisture_Power_Pin, HIGH); // Sets the input state to 3.3V
   //read sensor values
   moisture_level = analogRead(Moisture_Pin);  // read the input pin
 
@@ -110,34 +110,53 @@ void moisture_sensor() {
   }
   
   //sleep the sensor
-  digitalWrite(Moisture_Power_Pin, LOW) // Sets the input state to GND
+  digitalWrite(Moisture_Power_Pin, LOW); // Sets the input state to GND
 }
 
 //MAX17043 reading function
 void battery_sensor() {
   //initializes the battery sensor
-  fuelGauge.begin();
+  FuelGauge.begin();
   //wake up sensor
-  Serial.println("Waking...");
-  fuelGauge.wake();
+  Serial.println("Waking FuelGuage");
+  if (FuelGauge.isSleeping()){
+    FuelGauge.wake();
+    if (!FuelGauge.isSleeping()){
+      Serial.println("Fuel Gauge is now awake.");
+    }
+    else {
+      Serial.println("Failed to wake Fuel Gauge.");
+    }
+  }
+  else {
+    Serial.println("Fuel Gauge is already awake.");
+  }
   Serial.println();
   Serial.println("Reading battery capacity and percentage values");
   //read sensor values
-  Serial.print("Version: ");
-  Serial.println(fuelGauge.getVersion());
-  Serial.print("Alert Threshold: ");
-  Serial.println(fuelGauge.getAlertThreshold());
-  Serial.print("Alert Threshold Register Version: ");
-  Serial.println(fuelGauge.getAlertThresholdRegister());
-  Serial.print("Battery Voltage: ");
-  Serial.println(fuelGauge.getBatteryVoltage());
-  Serial.print("Battery Percentage: ");
-  Serial.println(fuelGauge.getBatteryPercentage());
-  Serial.print("Is Alerting? ");
-  Serial.println(fuelGauge.isAlerting());
+  Serial.print("Version:   "); Serial.println(FuelGauge.version());
+  Serial.print("ADC:   "); Serial.println(FuelGauge.adc());
+  Serial.print("Voltage:   "); Serial.print(FuelGauge.voltage()); Serial.println(" v");
+  Serial.print("Percent:   "); Serial.print(FuelGauge.percent()); Serial.println("%");
+  Serial.print("Is Sleeping:   "); Serial.println(FuelGauge.isSleeping() ? "Yes" : "No");
+  Serial.print("Alert: "); Serial.println(FuelGauge.alertIsActive() ? "Yes" : "No");
+  Serial.print("Threshold: "); Serial.println(FuelGauge.getThreshold());
+  Serial.print("Compensation:  0x"); Serial.println(FuelGauge.compensation(), HEX);
   //sleep sensor
-  Serial.println("Sleeping...");
-  fuelGauge.sleep();
+  Serial.println("Sleeping FuelGuage");
+  if (!FuelGauge.isSleeping()){
+    FuelGauge.sleep();
+    if (FuelGauge.isSleeping()){
+      Serial.println("Fuel Gauge put in sleep mode.");
+      }
+    else {
+      Serial.println("Fuel Gauge failed to be put in sleep mode.");
+      }
+    }
+  else {
+  Serial.println("Fuel Gauge is already in sleep mode.");
+  }
+  //https://github.com/porrey/max1704x
 }
 
 //BME280 reading function
