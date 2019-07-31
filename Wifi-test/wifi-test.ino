@@ -7,6 +7,11 @@
 //BH1750 (Lux)
 #include <BH1750FVI.h>
 #include <Wire.h>
+//BME280 (Temp.Hum.,Press.)
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+//MAX17403 (Battery)
+#include <MAX17043.h>
 
 #ifndef STASSID
 #define STASSID ""
@@ -14,14 +19,20 @@
 #endif
 
 BH1750FVI LightSensor(BH1750FVI::k_DevModeOneTimeHighRes);
+Adafruit_BME280 bme;
 
 //wifi settings
 const char* ssid     = STASSID;
 const char* password = STAPSK;
-
 //site to test connectivity
 const char* host = "djxmmx.net";
 const uint16_t port = 17;
+
+//min return value of the moisture sensor to confirm it's working.
+const int min_moisture_level = 200;
+
+//define sea level Pressure
+//SEALEVELPRESSURE_HPA = (get fom open waether map)
 
 //defining variable types
 int moisture_level;
@@ -30,8 +41,25 @@ uint16_t lux_level;
 //const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
 unsigned long delayTime;
 
+int Moisture_Pin = A0; // Sets the Analog input to A0
+int Config_Pin = D3;  // Config button connected to digital pin D3
+int Motor_Pin = D4;    // Motor enable circuit connected to digital pin D4
+int Moisture_Power_Pin = D5 // Pin to power moisture sensor so that it's not on all of the time
+
+void define_pins() {
+  pinMode(Motor_Pin, OUTPUT);  // sets the digital pin D4 as output
+  digitalWrite(Motor_Pin, LOW) // Sets the input state to GND
+  pinMode(Config_Pin, INPUT);  // sets the digital pin D3 as input
+  digitalWrite(Config_Pin, LOW) // Sets the input state to GND
+  pinMode(Moisture_Pin, INPUT);  // sets the Analog pin A0 as input
+  pinMode(Moisture_Power_Pin, OUTPUT);  // sets the digital pin D5 as output
+  digitalWrite(Moisture_Power_Pin, LOW) // Sets the input state to GND
+}
+
 //BH1750 reading function
 void light_sensor() {
+  Serial.println();
+  Serial.println("Reading Light value");
   //initializes wire library
   Wire.begin();
   //initializes the light sensor in ONE_TIME_HIGH_RES_MODE
@@ -43,29 +71,140 @@ void light_sensor() {
   Serial.println(lux_level);
 }
 
-void setup() {
+//Moisture reading function
+void moisture_sensor() {
+  Serial.println();
+  Serial.println("Reading Moisture value");
+  //wake up sensor
+  digitalWrite(Moisture_Power_Pin, HIGH) // Sets the input state to GND
+  //read sensor values
+  moisture_level = analogRead(Moisture_Pin);  // read the input pin
+  //sleep sensor
+  digitalWrite(Moisture_Power_Pin, LOW) // Sets the input state to GND
 
+  /* if the moisture sensor fails, we don't want the motor turning on all
+  of the time. So we check against a minimum set value.
+  If that threshold is missed, we default the moisture level to the max value. */
+
+  Serial.print("Moisture: ");
+  if (moisture_level < min_moisture_level) {
+    moisture_level = 1023;
+    Serial.println("ERROR");
+    }
+  else {Serial.println(moisture_level);} // debug value
+}
+
+//MAX17043 reading function
+void battery_sensor() {
+  Serial.println();
+  Serial.println("Reading battery capacity and percentage values");
+  //wake up sensor
+  //read sensor values
+  //sleep sensor
+}
+
+//BME280 reading function
+void bme_sensor(){
+  Serial.println();
+  Serial.println("Reading Temp,Humidity and Pressure values");
+
+  //initializes the BME280 sensor in normal mode.
+  bme.begin();
+
+  Serial.println("normal mode, 16x oversampling for all, filter off,");
+  Serial.println("0.5ms standby period");
+
+/*
+  // weather monitoring
+  Serial.println("-- Weather Station Scenario --");
+  Serial.println("forced mode, 1x temperature / 1x humidity / 1x pressure oversampling,");
+  Serial.println("filter off");
+  bme.setSampling(Adafruit_BME280::MODE_FORCED,
+                  Adafruit_BME280::SAMPLING_X1, // temperature
+                  Adafruit_BME280::SAMPLING_X1, // pressure
+                  Adafruit_BME280::SAMPLING_X1, // humidity
+                  Adafruit_BME280::FILTER_OFF   );
+                      
+  // suggested rate is 1/60Hz (1m)
+
+  // indoor navigation
+  Serial.println("-- Indoor Navigation Scenario --");
+  Serial.println("normal mode, 16x pressure / 2x temperature / 1x humidity oversampling,");
+  Serial.println("0.5ms standby period, filter 16x");
+  bme.setSampling(Adafruit_BME280::MODE_NORMAL,
+                  Adafruit_BME280::SAMPLING_X2,  // temperature
+                  Adafruit_BME280::SAMPLING_X16, // pressure
+                  Adafruit_BME280::SAMPLING_X1,  // humidity
+                  Adafruit_BME280::FILTER_X16,
+                  Adafruit_BME280::STANDBY_MS_0_5 );
+    
+  // suggested rate is 25Hz
+  // 1 + (2 * T_ovs) + (2 * P_ovs + 0.5) + (2 * H_ovs + 0.5)
+  // T_ovs = 2
+  // P_ovs = 16
+  // H_ovs = 1
+  // = 40ms (25Hz)
+  // with standby time that should really be 24.16913... Hz
+  delayTime = 41;
+
+  //Suggestions taken from here:
+  //https://github.com/adafruit/Adafruit_BME280_Library/blob/master/examples/advancedsettings/advancedsettings.ino
+  */
+
+  Serial.print("Temperature = ");
+  Serial.print(bme.readTemperature());
+  Serial.println(" *C");
+
+  Serial.print("Pressure = ");
+  Serial.print(bme.readPressure() / 100.0F);
+  Serial.println(" hPa");
+
+  // Serial.print("Approx. Altitude = ");
+  // Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
+  // Serial.println(" m");
+
+  Serial.print("Humidity = ");
+  Serial.print(bme.readHumidity());
+  Serial.println(" %");
+  // power down BME280 - handled in forced mode. N/A in normal mode.
+
+}
+
+void setup() {
   //make sure the wifi is off on the first boot
   //not sure how effective this is as it only makes a difference on a cold boot
   WiFi.mode(WIFI_OFF);
   WiFi.forceSleepBegin();
   delay(1);
 
+  // Only needed in forced mode! In normal mode, you can remove the next line.
+  bme.takeForcedMeasurement(); // has no effect in normal mode
+
   //initializes serial output
   Serial.begin(115200);
-
+  define_pins();
   //debug output displaying the wifi is disabled
   Serial.println();
   Serial.println("Wifi disabled");
   delay(5000);
 
+  //time to read the moisture value and store it
+  moisture_sensor();
+  delay(5000);  
+
   //time to read the light value and store it
-  Serial.println();
-  Serial.println("Reading Light value");
   light_sensor();
   delay(5000);  
 
-  //now that we have read the light value we can upload it
+  //time to read the bme values and store them
+  bme_sensor();
+  delay(5000);  
+
+  //time to read the battery values and store them
+  battery_sensor();
+  delay(5000);
+
+  //now that we have read the sensor values we can upload it
   //to do this, we must turn on the wifi.
   Serial.print("Turining on wifi");
   WiFi.forceSleepWake();
@@ -81,7 +220,7 @@ void setup() {
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(100);
     Serial.print(".");
   }
 
