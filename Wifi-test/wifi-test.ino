@@ -75,7 +75,12 @@ void light_sensor() {
 
 //Do we need to water the plant?
 void water_plant() {
- 	if (moisture_level < desired_moisture_level) {
+  if (moisture_level < min_moisture_level) { // sensor broken or disconnected
+    moisture_level = 1023; //return with the highest value to stop watering
+    Serial.println("Error with sensor");
+    }
+  else {
+  if (moisture_level < desired_moisture_level) {
   	Serial.print("Watering plant");
     digitalWrite(Motor_Pin, HIGH);
  		while (moisture_level < desired_moisture_level) {
@@ -83,32 +88,29 @@ void water_plant() {
 		}    
  	  digitalWrite(Motor_Pin, LOW);
     Serial.print("Plant watered");
+    Serial.print("New Moisture: ");
+    Serial.println(moisture_level); // Print the new moisture value
   }
 }
 
 //Moisture reading function
 void moisture_sensor() {
+
   Serial.println();
   Serial.println("Reading Moisture value");
+
   //wake up sensor
   digitalWrite(Moisture_Power_Pin, HIGH); // Sets the input state to 3.3V
+
   //read sensor values
   moisture_level = analogRead(Moisture_Pin);  // read the input pin
 
-  /* if the moisture sensor fails, we don't want the motor turning on all
-  of the time. So we check against a minimum set value.
-  If that threshold is missed, we set the default moisture level to the max. */
-
   Serial.print("Moisture: ");
-  if (moisture_level < min_moisture_level) {
-    moisture_level = 1023;
-    Serial.println("ERROR");
-    }
-  else {
-    water_plant();
-    Serial.println(moisture_level); // Print the current moisture value
+  Serial.println(moisture_level); // Print the current moisture value
+
+  water_plant();
   }
-  
+
   //sleep the sensor
   digitalWrite(Moisture_Power_Pin, LOW); // Sets the input state to GND
 }
