@@ -43,6 +43,17 @@ boolean config_mode_enabled;
 //const char * myWriteAPIKey = "";  // Paste your ThingSpeak Write API Key between the quotes
 //unsigned long delayTime;          //don't need this.
 
+//ThingSpeak Twitter setup.
+//-----------------------------------------------------------------
+// ThingSpeak Settings
+char thingSpeakAddress[] = "api.thingspeak.com";
+String thingtweetAPIKey = "XXXMX2WYYR0EV68M";
+// Variable Setup
+long lastConnectionTime = 0; 
+boolean lastConnected = false;
+int failedCounter = 0;
+//-----------------------------------------------------------------
+
 int Moisture_Pin = A0; // Sets the Moitsure input to A0
 int Config_Pin = D3;  // Configuration button connected to digital pin D3
 int Motor_Pin = D4;    // Motor enable circuit connected to digital pin D4
@@ -321,6 +332,52 @@ void config_mode() {
   while (Config_Pin = HIGH) {
     delay(5000);
     config_mode_enabled = true;
+  }
+}
+
+void updateTwitterStatus(String tsData)
+{
+  if (client.connect(thingSpeakAddress, 80))
+  { 
+    // Create HTTP POST Data
+    tsData = "api_key="+thingtweetAPIKey+"&status="+tsData;
+            
+    client.print("POST /apps/thingtweet/1/statuses/update HTTP/1.1\n");
+    client.print("Host: api.thingspeak.com\n");
+    client.print("Connection: close\n");
+    client.print("Content-Type: application/x-www-form-urlencoded\n");
+    client.print("Content-Length: ");
+    client.print(tsData.length());
+    client.print("\n\n");
+
+    client.print(tsData);
+    
+    lastConnectionTime = millis();
+    
+    if (client.connected())
+    {
+      Serial.println("Connecting to ThingSpeak...");
+      Serial.println();
+      
+      failedCounter = 0;
+    }
+    else
+    {
+      failedCounter++;
+  
+      Serial.println("Connection to ThingSpeak failed ("+String(failedCounter, DEC)+")");   
+      Serial.println();
+    }
+    
+  }
+  else
+  {
+    failedCounter++;
+    
+    Serial.println("Connection to ThingSpeak Failed ("+String(failedCounter, DEC)+")");   
+    Serial.println();
+    
+    lastConnectionTime = millis(); 
   }
 }
 
