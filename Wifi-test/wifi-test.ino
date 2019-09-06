@@ -55,9 +55,10 @@ int failedCounter = 0;
 //-----------------------------------------------------------------
 
 int Moisture_Pin = A0; // Sets the Moitsure input to A0
-int Config_Pin = D3;  // Configuration button connected to digital pin D3
+int Moisture_Power_Pin = D3; // Pin to power moisture sensor so that it's not on all of the time
 int Motor_Pin = D4;    // Motor enable circuit connected to digital pin D4
-int Moisture_Power_Pin = D5; // Pin to power moisture sensor so that it's not on all of the time
+int Config_Pin = D5;  // Configuration button connected to digital pin D5
+
 
 void define_pins() {
   pinMode(Motor_Pin, OUTPUT);  // sets the digital pin D4 as output
@@ -101,6 +102,7 @@ void water_plant() {
     Serial.print("Plant watered");
     Serial.print("New Moisture: ");
     Serial.println(moisture_level); // Print the new moisture value
+    }
   }
 }
 
@@ -120,7 +122,6 @@ void moisture_sensor() {
   Serial.println(moisture_level); // Print the current moisture value
 
   water_plant();
-  }
 
   //sleep the sensor
   digitalWrite(Moisture_Power_Pin, LOW); // Sets the input state to GND
@@ -131,6 +132,7 @@ void battery_sensor() {
   //initializes the battery sensor
   FuelGauge.begin();
   //wake up sensor
+  Serial.print("Is Sleeping:   "); Serial.println(FuelGauge.isSleeping() ? "Yes" : "No");
   Serial.println("Waking FuelGuage");
   if (FuelGauge.isSleeping()){
     FuelGauge.wake();
@@ -169,6 +171,7 @@ void battery_sensor() {
   else {
   Serial.println("Fuel Gauge is already in sleep mode.");
   }
+  Serial.print("Is Sleeping:   "); Serial.println(FuelGauge.isSleeping() ? "Yes" : "No");
   //https://github.com/porrey/max1704x
 }
 
@@ -335,51 +338,51 @@ void config_mode() {
   }
 }
 
-void updateTwitterStatus(String tsData)
-{
-  if (client.connect(thingSpeakAddress, 80))
-  { 
-    // Create HTTP POST Data
-    tsData = "api_key="+thingtweetAPIKey+"&status="+tsData;
-            
-    client.print("POST /apps/thingtweet/1/statuses/update HTTP/1.1\n");
-    client.print("Host: api.thingspeak.com\n");
-    client.print("Connection: close\n");
-    client.print("Content-Type: application/x-www-form-urlencoded\n");
-    client.print("Content-Length: ");
-    client.print(tsData.length());
-    client.print("\n\n");
-
-    client.print(tsData);
-    
-    lastConnectionTime = millis();
-    
-    if (client.connected())
-    {
-      Serial.println("Connecting to ThingSpeak...");
-      Serial.println();
-      
-      failedCounter = 0;
-    }
-    else
-    {
-      failedCounter++;
-  
-      Serial.println("Connection to ThingSpeak failed ("+String(failedCounter, DEC)+")");   
-      Serial.println();
-    }
-    
-  }
-  else
-  {
-    failedCounter++;
-    
-    Serial.println("Connection to ThingSpeak Failed ("+String(failedCounter, DEC)+")");   
-    Serial.println();
-    
-    lastConnectionTime = millis(); 
-  }
-}
+//void updateTwitterStatus(String tsData)
+//{
+//  if (client.connect(thingSpeakAddress, 80))
+//  { 
+//    // Create HTTP POST Data
+//    tsData = "api_key="+thingtweetAPIKey+"&status="+tsData;
+//            
+//    client.print("POST /apps/thingtweet/1/statuses/update HTTP/1.1\n");
+//    client.print("Host: api.thingspeak.com\n");
+//    client.print("Connection: close\n");
+//    client.print("Content-Type: application/x-www-form-urlencoded\n");
+//    client.print("Content-Length: ");
+//    client.print(tsData.length());
+//    client.print("\n\n");
+//
+//    client.print(tsData);
+//    
+//    lastConnectionTime = millis();
+//    
+//    if (client.connected())
+//    {
+//      Serial.println("Connecting to ThingSpeak...");
+//      Serial.println();
+//      
+//      failedCounter = 0;
+//    }
+//    else
+//    {
+//      failedCounter++;
+//  
+//      Serial.println("Connection to ThingSpeak failed ("+String(failedCounter, DEC)+")");   
+//      Serial.println();
+//    }
+//    
+//  }
+//  else
+//  {
+//    failedCounter++;
+//    
+//    Serial.println("Connection to ThingSpeak Failed ("+String(failedCounter, DEC)+")");   
+//    Serial.println();
+//    
+//    lastConnectionTime = millis(); 
+//  }
+//}
 
 void setup() {
 
@@ -392,7 +395,7 @@ void setup() {
   delay(DELAY_TIME);
 
   //do we enter config_mode?
-  config_mode();
+  //config_mode();
 
   // Only needed in forced mode! In normal mode, you can remove the next line.
   bme.takeForcedMeasurement(); // has no effect in normal mode
@@ -418,6 +421,7 @@ void setup() {
   enable_wifi();
 
   wifi_connectivity_test();
+  //updateTwitterStatus();
   deep_sleep();
 }
 

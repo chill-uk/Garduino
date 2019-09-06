@@ -182,6 +182,6 @@ void loop()
   read_light();
   read_moisture();
   print_serial();
-  print_screen();
+  //print_screen();
   delay(1000);
 }
