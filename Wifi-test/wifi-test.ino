@@ -97,6 +97,7 @@ void water_plant() {
     digitalWrite(Motor_Pin, HIGH);
  		while (moisture_level < desired_moisture_level) {
 			moisture_level = analogRead(Moisture_Pin);  // read the input pin
+      yield();
 		}    
  	  digitalWrite(Motor_Pin, LOW);
     Serial.print("Plant watered");
