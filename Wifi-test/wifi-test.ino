@@ -27,7 +27,7 @@ const char* host = "djxmmx.net";
 const int port = 17;
 
 //min return value of the moisture sensor to confirm it's working.
-const int min_moisture_level = 200;
+const int min_moisture_level = 20;
 const int desired_moisture_level = 700;
 const double SLEEP_TIME = 15e6;
 const double DELAY_TIME = 5000;
@@ -56,12 +56,12 @@ int failedCounter = 0;
 
 int Moisture_Pin = A0; // Sets the Moitsure input to A0
 int Moisture_Power_Pin = D3; // Pin to power moisture sensor so that it's not on all of the time
-int Motor_Pin = D4;    // Motor enable circuit connected to digital pin D4
-int Config_Pin = D5;  // Configuration button connected to digital pin D5
-
+int built_in_led = D4;    // Do not use this port for output as it enables the built-in led
+int Motor_Pin = D5;    // Motor enable circuit connected to digital pin D5
+int Config_Pin = D6;  // Configuration button connected to digital pin D6
 
 void define_pins() {
-  pinMode(Motor_Pin, OUTPUT);  // sets the digital pin D4 as output
+  pinMode(Motor_Pin, OUTPUT);  // sets the digital pin D5 as output
   digitalWrite(Motor_Pin, LOW); // Sets the input state to GND
   pinMode(Config_Pin, INPUT);  // sets the digital pin D3 as input
   digitalWrite(Config_Pin, LOW); // Sets the input state to GND
@@ -97,7 +97,9 @@ void water_plant() {
     digitalWrite(Motor_Pin, HIGH);
  		while (moisture_level < desired_moisture_level) {
 			moisture_level = analogRead(Moisture_Pin);  // read the input pin
-      yield();
+      Serial.println(moisture_level);
+      //yield();
+      delay(500);
 		}    
  	  digitalWrite(Motor_Pin, LOW);
     Serial.print("Plant watered");
