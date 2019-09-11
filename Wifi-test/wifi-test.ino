@@ -341,6 +341,15 @@ void config_mode() {
   }
 }
 
+// Incase I want to add an OLED screen for diagnostic / QR code.
+// void sleepDisplay(Adafruit_SSD1306* display) {
+//   display->ssd1306_command(SSD1306_DISPLAYOFF);
+// }
+
+// void wakeDisplay(Adafruit_SSD1306* display) {
+//   display->ssd1306_command(SSD1306_DISPLAYON);
+// }
+
 //void updateTwitterStatus(String tsData)
 //{
 //  if (client.connect(thingSpeakAddress, 80))
