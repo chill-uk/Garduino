@@ -26,6 +26,10 @@ const char* password = STAPSK;
 const char* host = "djxmmx.net";
 const int port = 17;
 
+//-----------------------------------------------------------------
+// in the future, I would like for these settings to be set via webgui.
+//-----------------------------------------------------------------
+
 //min return value of the moisture sensor to confirm it's working.
 const int min_moisture_level = 20;
 const int desired_moisture_level = 700;
@@ -186,10 +190,6 @@ void bme_sensor(){
   //initializes the BME280 sensor in normal mode.
   bme.begin();
 
-  // Standard monitoring mode
-  // Serial.println("normal mode, 16x oversampling for all, filter off,");
-  // Serial.println("0.5ms standby period");
-
   // weather monitoring
   // Serial.println("-- Weather Station Scenario --");
   // Serial.println("forced mode, 1x temperature / 1x humidity / 1x pressure oversampling,");
@@ -199,28 +199,6 @@ void bme_sensor(){
                   Adafruit_BME280::SAMPLING_X1, // pressure
                   Adafruit_BME280::SAMPLING_X1, // humidity
                   Adafruit_BME280::FILTER_OFF   );
-                      
-  // suggested rate is 1/60Hz (1m)
- 
-  /* indoor navigation
-  Serial.println("-- Indoor Navigation Scenario --");
-  Serial.println("normal mode, 16x pressure / 2x temperature / 1x humidity oversampling,");
-  Serial.println("0.5ms standby period, filter 16x");
-  bme.setSampling(Adafruit_BME280::MODE_NORMAL,
-                  Adafruit_BME280::SAMPLING_X2,  // temperature
-                  Adafruit_BME280::SAMPLING_X16, // pressure
-                  Adafruit_BME280::SAMPLING_X1,  // humidity
-                  Adafruit_BME280::FILTER_X16,
-                  Adafruit_BME280::STANDBY_MS_0_5 );
-    
-  // suggested rate is 25Hz
-  // 1 + (2 * T_ovs) + (2 * P_ovs + 0.5) + (2 * H_ovs + 0.5)
-  // T_ovs = 2
-  // P_ovs = 16
-  // H_ovs = 1
-  // = 40ms (25Hz)
-  // with standby time that should really be 24.16913... Hz
-  delayTime = 41;
 
   //Suggestions taken from here:
   //https://github.com/adafruit/Adafruit_BME280_Library/blob/master/examples/advancedsettings/advancedsettings.ino
@@ -253,7 +231,7 @@ void enable_wifi() {
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
-  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
+  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, by default,
      would try to act as both a client and an access-point and could cause
      network-issues with your other WiFi-devices on your WiFi-network. */
   WiFi.mode(WIFI_STA);
