@@ -260,8 +260,12 @@ void enable_wifi() {
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
+    if (i=> 10 ) {exit;}
+    else {    
+    delay(500);
     Serial.print(".");
+    i++
+    }
   }
 
   Serial.println("");
@@ -280,55 +284,23 @@ void disable_wifi_on_boot() {
   Serial.println("Wifi disabled");
 }
 
-void wifi_connectivity_test() {
-  Serial.print("connecting to ");
-  Serial.print(host);
-  Serial.print(':');
-  Serial.println(port);
-
-  // Use WiFiClient class to create TCP connections
-  WiFiClient client;
-  if (!client.connect(host, port)) {
-    Serial.println("connection failed");
-    delay(5000);
-    return;
+void upload_sensor_reading()
+{
+  ThingSpeak.begin(client); 
+  int x = ThingSpeak.writeField(myChannelNumber, 1, lux, myWriteAPIKey);
+  
+  // Check the return code
+  if(x == 200){
+    Serial.println("Channel update successful.");
   }
-
-  // This will send a string to the server
-  Serial.println("sending data to server");
-  if (client.connected()) {
-    client.println("hello from ESP8266");
+  else{
+    Serial.println("Problem updating channel. HTTP error code " + String(x));
   }
-
-  // wait for data to be available
-  unsigned long timeout = millis();
-  while (client.available() == 0) {
-    if (millis() - timeout > 5000) {
-      Serial.println(">>> Client Timeout !");
-      client.stop();
-      delay(60000);
-      return;
-    }
-  }
-
-  // Read all the lines of the reply from server and print them to Serial
-  Serial.println("receiving from remote server");
-  // not testing 'client.connected()' since we do not need to send data here
-  while (client.available()) {
-    char ch = static_cast<char>(client.read());
-    Serial.print(ch);
-  }
-
-  // Close the connection
-  Serial.println();
-  Serial.println("closing connection");
-  client.stop();
-
-  WiFi.disconnect(true);
-  delay(1);
 }
 
 void deep_sleep() {
+  WiFi.disconnect(true);
+  delay(1);
   // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
   Serial.println("I'm awake, but I'm going into deep sleep mode for 15 seconds");
   ESP.deepSleep(SLEEP_TIME, WAKE_RF_DISABLED);
@@ -395,7 +367,6 @@ void setup() {
 
   //debug output displaying the wifi is disabled
   disable_wifi_on_boot();
-  delay(DELAY_TIME);
 
   //do we enter config_mode?
   //config_mode();
@@ -405,25 +376,21 @@ void setup() {
 
   //time to read the moisture value and store it
   moisture_sensor();
-  delay(DELAY_TIME);  
 
   //time to read the light value and store it
   light_sensor();
-  delay(DELAY_TIME); 
 
   //time to read the bme values and store them
   bme_sensor();
-  delay(DELAY_TIME);  
 
   //time to read the battery values and store them
   battery_sensor();
-  delay(DELAY_TIME);
 
   //now that we have read the sensor values we can upload it
   //to do this, we must turn on the wifi.
   enable_wifi();
 
-  wifi_connectivity_test();
+  upload_sensor_reading();
   //updateTwitterStatus();
   deep_sleep();
 }
