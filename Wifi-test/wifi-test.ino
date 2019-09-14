@@ -21,17 +21,13 @@ Adafruit_BME280 bme;
 const char* ssid     = STASSID;
 const char* password = STAPSK;
 
-//TESTING CODE
-//site to test connectivity
-const char* host = "djxmmx.net";
-const int port = 17;
-
 //-----------------------------------------------------------------
 // in the future, I would like for these settings to be set via webgui.
 //-----------------------------------------------------------------
 
 //min return value of the moisture sensor to confirm it's working.
-const int min_moisture_level = 20;
+const int faulty_moisture_level = 20;
+const int minimum_moisture_level = 400;
 const int desired_moisture_level = 700;
 const double SLEEP_TIME = 15e6;
 const double DELAY_TIME = 5000;
@@ -84,6 +80,7 @@ void light_sensor() {
   LightSensor.begin();
   //reads the light value and then it should shut down
   lux_level = LightSensor.GetLightIntensity();
+  LightSensor.Sleep();
   //prints the value to serial console
   Serial.print("Light: ");
   Serial.println(lux_level);
@@ -91,24 +88,23 @@ void light_sensor() {
 
 //Do we need to water the plant?
 void water_plant() {
-  if (moisture_level < min_moisture_level) { // sensor broken or disconnected
+  if (moisture_level < faulty_moisture_level) { // sensor broken or disconnected
     moisture_level = 1023; //return with the highest value to stop watering
     Serial.println("Error with sensor");
     }
   else {
-  if (moisture_level < desired_moisture_level) {
+  if (moisture_level < minimum_moisture_level) {
   	Serial.print("Watering plant");
     digitalWrite(Motor_Pin, HIGH);
  		while (moisture_level < desired_moisture_level) {
 			moisture_level = analogRead(Moisture_Pin);  // read the input pin
       Serial.println(moisture_level);
       //yield();
-      delay(500);
+      delay(250);
 		}    
  	  digitalWrite(Motor_Pin, LOW);
     Serial.print("Plant watered");
-    Serial.print("New Moisture: ");
-    Serial.println(moisture_level); // Print the new moisture value
+    Serial.print("New Moisture: "); Serial.println(moisture_level); // Print the new moisture value
     }
   }
 }
@@ -156,14 +152,14 @@ void battery_sensor() {
   Serial.println();
   Serial.println("Reading battery capacity and percentage values");
   //read sensor values
-  Serial.print("Version:   "); Serial.println(FuelGauge.version());
-  Serial.print("ADC:   "); Serial.println(FuelGauge.adc());
-  Serial.print("Voltage:   "); Serial.print(FuelGauge.voltage()); Serial.println(" v");
-  Serial.print("Percent:   "); Serial.print(FuelGauge.percent()); Serial.println("%");
-  Serial.print("Is Sleeping:   "); Serial.println(FuelGauge.isSleeping() ? "Yes" : "No");
+  Serial.print("Version: "); Serial.println(FuelGauge.version());
+  Serial.print("ADC: "); Serial.println(FuelGauge.adc());
+  Serial.print("Voltage: "); Serial.print(FuelGauge.voltage()); Serial.println(" v");
+  Serial.print("Percent: "); Serial.print(FuelGauge.percent()); Serial.println("%");
+  Serial.print("Is Sleeping: "); Serial.println(FuelGauge.isSleeping() ? "Yes" : "No");
   Serial.print("Alert: "); Serial.println(FuelGauge.alertIsActive() ? "Yes" : "No");
   Serial.print("Threshold: "); Serial.println(FuelGauge.getThreshold());
-  Serial.print("Compensation:  0x"); Serial.println(FuelGauge.compensation(), HEX);
+  Serial.print("Compensation: 0x"); Serial.println(FuelGauge.compensation(), HEX);
   //sleep sensor
   Serial.println("Sleeping FuelGuage");
   if (!FuelGauge.isSleeping()){
@@ -192,8 +188,8 @@ void bme_sensor(){
 
   // weather monitoring
   // Serial.println("-- Weather Station Scenario --");
-  // Serial.println("forced mode, 1x temperature / 1x humidity / 1x pressure oversampling,");
-  // Serial.println("filter off");
+  Serial.println("forced mode, 1x temperature / 1x humidity / 1x pressure oversampling,");
+  Serial.println("filter off");
   bme.setSampling(Adafruit_BME280::MODE_FORCED,
                   Adafruit_BME280::SAMPLING_X1, // temperature
                   Adafruit_BME280::SAMPLING_X1, // pressure
@@ -219,8 +215,9 @@ void bme_sensor(){
   Serial.print("Humidity = ");
   Serial.print(bme.readHumidity());
   Serial.println(" %");
-  // power down BME280 - handled in forced mode. N/A in normal mode.
 
+  // power down BME280 - handled in forced mode.
+  // bme.setSampling(Adafruit_BME280::MODE_SLEEP); //Do I need this in forced mode?
 }
 
 void enable_wifi() {
@@ -237,14 +234,14 @@ void enable_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    if (i=> 10 ) {exit;}
-    else {    
-    delay(500);
-    Serial.print(".");
-    i++
-    }
-  }
+//  while (WiFi.status() != WL_CONNECTED) {
+//    if (i=> 10 ) {exit;}
+//    else {    
+//    delay(500);
+//    Serial.print(".");
+//    i++
+//    }
+//  }
 
   Serial.println("");
   Serial.println("WiFi connected");
