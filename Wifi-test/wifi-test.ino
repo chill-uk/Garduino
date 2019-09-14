@@ -72,44 +72,52 @@ void define_pins() {
 
 //BH1750 reading function
 void light_sensor() {
-  Serial.println();
-  Serial.println("Reading Light value");
+  
   //initializes wire library
   Wire.begin();
   //initializes the light sensor in ONE_TIME_HIGH_RES_MODE
   LightSensor.begin();
-  //reads the light value and then it should shut down
+
+  //reads the light value
+  Serial.println();
+  Serial.println("Reading Light value");
   lux_level = LightSensor.GetLightIntensity();
-  LightSensor.Sleep();
+  
   //prints the value to serial console
-  Serial.print("Light: ");
-  Serial.println(lux_level);
+  Serial.print("Light: "); Serial.println(lux_level);
+
+  // send the light sensor to sleep
+  LightSensor.Sleep();
 }
 
-//Do we need to water the plant?
 void water_plant() {
+
+  // test for faulty sensor
   if (moisture_level < faulty_moisture_level) { // sensor broken or disconnected
     moisture_level = 1023; //return with the highest value to stop watering
     Serial.println("Error with sensor");
-    }
+  }
+  // do we need to water the plant?
   else {
-  if (moisture_level < minimum_moisture_level) {
-  	Serial.print("Watering plant");
-    digitalWrite(Motor_Pin, HIGH);
- 		while (moisture_level < desired_moisture_level) {
-			moisture_level = analogRead(Moisture_Pin);  // read the input pin
-      Serial.println(moisture_level);
-      //yield();
-      delay(250);
-		}    
- 	  digitalWrite(Motor_Pin, LOW);
-    Serial.print("Plant watered");
-    Serial.print("New Moisture: "); Serial.println(moisture_level); // Print the new moisture value
+    if (moisture_level < minimum_moisture_level) {
+  	  Serial.print("The soil is dry, watering plant");
+      digitalWrite(Motor_Pin, HIGH);
+ 		  while (moisture_level < desired_moisture_level) {
+			  moisture_level = analogRead(Moisture_Pin);  // read the input pin
+        Serial.println(moisture_level);
+        //yield();
+        delay(250);
+		  }    
+ 	    digitalWrite(Motor_Pin, LOW);
+      Serial.print("Plant watered");
+      Serial.print("New Moisture: "); Serial.println(moisture_level); // Print the new moisture value
+    }
+    else {
+      Serial.println("The soil is OK");
     }
   }
 }
 
-//Moisture reading function
 void moisture_sensor() {
 
   Serial.println();
@@ -121,9 +129,10 @@ void moisture_sensor() {
   //read sensor values
   moisture_level = analogRead(Moisture_Pin);  // read the input pin
 
-  Serial.print("Moisture: ");
+  Serial.print("Current moisture level: ");
   Serial.println(moisture_level); // Print the current moisture value
 
+  // do we need to water the plant?
   water_plant();
 
   //sleep the sensor
@@ -132,10 +141,13 @@ void moisture_sensor() {
 
 //MAX17043 reading function
 void battery_sensor() {
+  
   //initializes the battery sensor
   FuelGauge.begin();
+  
   //wake up sensor
   Serial.print("Is Sleeping:   "); Serial.println(FuelGauge.isSleeping() ? "Yes" : "No");
+  
   Serial.println("Waking FuelGuage");
   if (FuelGauge.isSleeping()){
     FuelGauge.wake();
@@ -223,7 +235,7 @@ void bme_sensor(){
 void enable_wifi() {
   Serial.print("Turining on wifi");
   WiFi.forceSleepWake();
-  delay(DELAY_TIME);
+  delay(1);
 
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -234,14 +246,10 @@ void enable_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-//  while (WiFi.status() != WL_CONNECTED) {
-//    if (i=> 10 ) {exit;}
-//    else {    
-//    delay(500);
-//    Serial.print(".");
-//    i++
-//    }
-//  }
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(250);
+    Serial.print(".");
+  }
 
   Serial.println("");
   Serial.println("WiFi connected");
@@ -252,7 +260,10 @@ void enable_wifi() {
 void disable_wifi_on_boot() {
   //make sure the wifi is off on the first boot
   //not sure how effective this is as it only makes a difference on a cold boot
+  Serial.println(WiFi.mode());
   WiFi.mode(WIFI_OFF);
+  Serial.println("Wifi mode should be off");
+  Serial.println(WiFi.mode());
   WiFi.forceSleepBegin();
   delay(1);
   Serial.println();
@@ -276,6 +287,7 @@ void upload_sensor_reading()
 void deep_sleep() {
   WiFi.disconnect(true);
   delay(1);
+  Serial.println(WiFi.disconnect());
   // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
   Serial.println("I'm awake, but I'm going into deep sleep mode for 15 seconds");
   ESP.deepSleep(SLEEP_TIME, WAKE_RF_DISABLED);
