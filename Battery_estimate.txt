@@ -1,0 +1,25 @@
+Based on the results of https://www.geekstips.com/battery-life-calculator-sleep-mode/:
+
+⚖ Capacity rating of battery (mAh)
+6600
+
+≈ Current consumption of device during sleep (mA)
+0.15
+
+↯ Current consumption of device during wake (mA)
+200
+
+⌚ Number of wakeups per hour (3600 = always ON)
+1
+
+⌛ Duration of wake time (ms)
+10000
+
+➤ Calculate
+331.49 Days
+
+⌛ Duration of wake time (ms)
+7500
+
+➤ Calculate
+412.73 Days
