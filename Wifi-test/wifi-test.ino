@@ -93,13 +93,13 @@ void light_sensor() {
 void water_plant() {
 
   // test for faulty sensor
-  if (moisture_level < faulty_moisture_level) { // sensor broken or disconnected
+  if (moisture_level <= faulty_moisture_level) { // sensor broken or disconnected
     moisture_level = 1023; //return with the highest value to stop watering
     Serial.println("Error with sensor");
   }
   // do we need to water the plant?
   else {
-    if (moisture_level < minimum_moisture_level) {
+    if (moisture_level <= minimum_moisture_level) {
   	  Serial.print("The soil is dry, watering plant");
       digitalWrite(Motor_Pin, HIGH);
  		  while (moisture_level < desired_moisture_level) {
