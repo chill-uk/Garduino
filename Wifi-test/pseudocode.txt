@@ -15,8 +15,7 @@ WATER_LEVEL_LOW = FALSE
 T = 0
 
 NodeMCU wakes from either: 
-    * First power on (flash blank)
-    * Battery connected
+    * First power on (settings are blank)
     * EXTRTC wake-up
 Wifi module is OFF
 
@@ -56,7 +55,7 @@ Read TEMP sensor
     Temp / Humidity / Pressure
 Sleep TEMP sensor
 
-T = 5 (Mositure sesnor)
+T = 5 (Mositure sesnor - for multiple pumps, re-read the WATER_LEVEL_LOW sensor each time)
 
 Wake Mositure sensor (A/B)
 Read Mositure sensor (A/B)
@@ -76,4 +75,34 @@ Sleep Mositure sensor
 
 T = 6 
 
+Wake Wifi
+Connect to AP via DHCP
+Upload results
+    [FLOAT] MOISTURE_LEVEL
+    [STRING] MOISTURE_NOTIFICATION
+    [FLOAT] BATTERY_LEVEL
+    [STRING] BATTERY_NOTIFICATION
+    [INT] LUX
+    [FLOAT] TEMP/HUMIDITY/PRESSURE
+    [BOOL] WATERING_ENABLED (TRUE/FALSE)
+    [BOOL] WATER_LEVEL_LOW (TRUE/FALSE)
 
+T = 7 (Updte EXT.RTC - if needed)
+
+if NTPCLIENT_UPDATE = TRUE 
+    Sync EXT.RTC from NTP pool.
+
+T = 8 (Read weather forecast)
+
+Read OpenWeathermapAPI
+    Check weather for next 3 hours
+    if rainfall > X
+        WATERING_ENABLED = FALSE >> Save to internal storage
+    if rainfall < X
+        WATERING_ENABLED = TRUE >> Save to internal storage
+
+T = 9
+
+Disconnect Wifi
+Disable Wifi
+Deep.sleep
