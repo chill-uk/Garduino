@@ -77,7 +77,7 @@ T = 6
 
 Wake Wifi
 Connect to AP via DHCP
-Upload results
+Upload results (thingspeak and twitter)
     [FLOAT] MOISTURE_LEVEL
     [STRING] MOISTURE_NOTIFICATION
     [FLOAT] BATTERY_LEVEL
