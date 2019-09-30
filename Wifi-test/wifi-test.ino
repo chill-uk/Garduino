@@ -7,6 +7,10 @@
 #include <Adafruit_BME280.h>
 //MAX17403 (Battery)
 #include <MAX17043.h>
+// I want to include an external RTC to wake the ESP8266
+// Along with keeping NTP tp keep the clock up to date
+// #include <DS3231.h>
+// #include <ESP_NTP.h>
 
 #ifndef STASSID
 #define STASSID ""
