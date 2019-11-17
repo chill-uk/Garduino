@@ -1,0 +1,15 @@
+Wifi SSID       [       ]
+Wifi Password   [       ]
+
+Diagnostic Menu
+    Displays all data regarding sensors
+Version number
+
+Monitoring
+Wake Up Cycle   [5,10,15,20,30,45,60]
+Min water value [       ]
+Max water value [       ]
+Battery Alert   [       ]
+
+Config
+Sensors Found   [Sensor name]   [Enable]

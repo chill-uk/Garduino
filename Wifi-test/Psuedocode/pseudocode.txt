@@ -1,3 +1,5 @@
+Read the EEPROM for the following values:
+
 // MAX17043
 BATTERY_CRITICAL_LEVEL = 10%
 BATTERY_LOW_LEVEL = 30%
@@ -16,6 +18,7 @@ T = 0
 
 NodeMCU wakes from either: 
     * First power on (settings are blank)
+    * Reset button is pressed
     * EXTRTC wake-up
 Wifi module is OFF
 
@@ -73,7 +76,7 @@ Read Mositure sensor (A/B)
         MOISTURE_NOTIFICATION = "Plants aren't being watered.
 Sleep Mositure sensor
 
-T = 6 
+T = 6 (If time = XX:00) [on the hour]
 
 Wake Wifi
 Connect to AP via DHCP
@@ -87,16 +90,19 @@ Upload results (thingspeak and twitter)
     [BOOL] WATERING_ENABLED (TRUE/FALSE)
     [BOOL] WATER_LEVEL_LOW (TRUE/FALSE)
 
+else
+    Store results in EEPROM
+
 T = 7 (Updte EXT.RTC - if needed)
 
 if NTPCLIENT_UPDATE = TRUE 
     Sync EXT.RTC from NTP pool.
 
-T = 8 (Read weather forecast)
+T = 8 (Read weather forecast - if configured)
 
 Read OpenWeathermapAPI
     Check weather for next 3 hours
-    if rainfall > X
+    if rainfall => X
         WATERING_ENABLED = FALSE >> Save to internal storage
     if rainfall < X
         WATERING_ENABLED = TRUE >> Save to internal storage
@@ -105,4 +111,4 @@ T = 9
 
 Disconnect Wifi
 Disable Wifi
-Deep.sleep
+Disable Alive pin.
