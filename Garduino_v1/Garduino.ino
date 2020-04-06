@@ -51,6 +51,7 @@ int Motor_Power_Pin = D5;       // select the pin for the Water_Motor
 int Sleep_Led = D4;             // Display sleep mode
 
 uint16_t moisture_level;
+uint16_t Failsafe_Moisture_Level = 20; // Moisture Level of dry soil
 uint16_t Min_Moisture_Level = 300; // Moisture Level of dry soil
 uint16_t Max_Moisture_Level = 700; // Moisture Level of wet soil
 uint16_t Max_Watering_Time = 10000; // 10 Seconds
@@ -131,7 +132,6 @@ void disable_water_pump();
 
 void water_plant() {
     int Time_Measurement = 0;
-    int First_Moisture_Level = 0;
     int Current_Moisture_Level = 0;
     int Start_Watering_Time = 0;
     int Current_Watering_Time = 0;
@@ -140,7 +140,7 @@ void water_plant() {
 
     Time_Measurement = millis();
 
-    if (First_Moisture_Level <= Min_Moisture_Level) {
+    if ((First_Moisture_Level <= Min_Moisture_Level) && (First_Moisture_Level > Failsafe_Moisture_Level)) {
         Start_Watering_Time = millis();
         while ((Current_Moisture_Level <= Max_Moisture_Level) && (Current_Watering_Time <= Max_Watering_Time)) {
             Current_Watering_Time = millis() - Start_Watering_Time;
@@ -156,7 +156,10 @@ void water_plant() {
     disable_water_pump();
 
 // clean the following code up a bit
-    if (First_Moisture_Level <= Min_Moisture_Level) {
+    if (First_Moisture_Level <= Failsafe_Moisture_Level) {
+        Serial.println("Moisture Sensor broken or disconnected");
+    }
+    if ((First_Moisture_Level <= Min_Moisture_Level) && (First_Moisture_Level > Failsafe_Moisture_Level)) {
         Serial.println("Plant needed watering");
         Serial.print("Moisture Level change: "); Serial.println(Current_Moisture_Level - First_Moisture_Level);  
         Serial.print("Watering time: "); Serial.println(Current_Watering_Time);
@@ -286,11 +289,18 @@ void initialise_sensors() {
 
 }
 
+// void Config_Mode() {
+//     do some config stuff?
+//     Maybe turn the oled screen on
+//     turn on the web server
+//     Allow you to change the settings?
+// }
+
 void setup() {
     define_pins();
     initialise_sensors();
     // check_wake_reason
-    if (ESP.getResetReason() = powerLost) {
+    if (ESP.getResetReason() = "Power On") {
         set_external_RTC();
     }
     check_battery_level();
@@ -305,6 +315,15 @@ void setup() {
     First_Moisture_Level = moisture_sensor_read();
     moisture_sensor_sleep();
     Serial.print("First Moisture Level: "); Serial.println(First_Moisture_Level);
+
+    // Config_Mode
+    // if (config_pin_x is HIGH) {
+    //  Config_Mode();
+    // }
+
+    // if ((First_Moisture_Level > Failsafe_Moisture_Level) {
+    //    && (RTC(Mins) == 0) && )
+    water_plant();
 
     upload_sensor_reading();
     //updateTwitterStatus();
