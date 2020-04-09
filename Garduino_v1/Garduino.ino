@@ -20,48 +20,61 @@
 //#include <WiFi101.h> // for WiFi 101 shield or MKR1000
 #include <WiFiUdp.h>
 
-// Read this from the internet and store in SPIF//
-int SEALEVELPRESSURE_HPA = 1010;
+#include "config.h"
+// Wifi config
+const char ssid[] = WIFI_SSID;
+const char pass[] = WIFI_PASSWD;
+// ThingSpeak
+unsigned long myChannelNumber = MY_CHANNEL_NUMBER;  // Replace the 0 with your channel number
+const char myWriteAPIKey[] = MY_WRITE_API_KEY;    // Paste your ThingSpeak Write API Key between the quotes
 
 Adafruit_BME280 bme; // I2C
 WiFiUDP ntpUDP;
 DS3232RTC extRTC;
 NTPClient timeClient(ntpUDP);
-
 // Create the Lightsensor instance
 BH1750FVI LightSensor(BH1750FVI::k_DevModeContHighRes);
 // BH1750FVI LightSensor(BH1750FVI::k_DevModeOneTimeHighRes);
 U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE);
 
-
-const char *ssid =  "";
-const char *pass =  "";
-
-#ifndef STASSID
-#define STASSID ""
-#define STAPSK  ""
-#endif
-
-unsigned long myChannelNumber = ;  // Replace the 0 with your channel number
-const char * myWriteAPIKey = "";    // Paste your ThingSpeak Write API Key between the quotes
-
+// Define our GPIO pins
 int Moisture_Level_Sensor = A0; // select the input pin for the Moisture Sensor
 int Moisture_Level_Power = D3;  // select the pin for the Moisture Sensor Power
 int Motor_Power_Pin = D5;       // select the pin for the Water_Motor
 int Sleep_Led = D4;             // Display sleep mode
 
+// Moisture Sensor
 uint16_t moisture_level;
 uint16_t Failsafe_Moisture_Level = 20; // Moisture Level of dry soil
 uint16_t Min_Moisture_Level = 300; // Moisture Level of dry soil
 uint16_t Max_Moisture_Level = 700; // Moisture Level of wet soil
 uint16_t Max_Watering_Time = 10000; // 10 Seconds
+
+// Lux Sensor
 uint16_t lux;
 unsigned long delayTime;
 
+// Battery Sensor
 float = battery_voltage;
 float = battery_percent;
 uint16_t = regulated_voltage;
 
+// BME280 Sensor
+float = external_temperature;
+float = external_pressure;
+float = external_altitude;
+float = external_humidity;
+// Read this from the internet and store in SPIF//
+int SEALEVELPRESSURE_HPA = 1010;
+
+// Deep sleep time
+// uint16_t Wake_Up_Interval = 300;     // 5 Mins
+// uint16_t Wake_Up_Interval = 600;     // 10 Mins
+uint16_t Wake_Up_Interval = 900;        // 15 Mins
+// uint16_t Wake_Up_Interval = 1800;    // 30 Mins
+// uint16_t Wake_Up_Interval = 3600;     // 60 Mins
+
+// RTC Timezone offser
 int timeOffset = 3600; //time offset in seconds
 
 // preinit() is called before system startup
@@ -140,7 +153,7 @@ void water_plant() {
 
     Time_Measurement = millis();
 
-    if ((First_Moisture_Level <= Min_Moisture_Level) && (First_Moisture_Level > Failsafe_Moisture_Level)) {
+    if ((First_Moisture_Level > Failsafe_Moisture_Level) && (First_Moisture_Level <= Min_Moisture_Level)) {
         Start_Watering_Time = millis();
         while ((Current_Moisture_Level <= Max_Moisture_Level) && (Current_Watering_Time <= Max_Watering_Time)) {
             Current_Watering_Time = millis() - Start_Watering_Time;
@@ -244,6 +257,7 @@ void disconnect_wifi() {
 
 void deep_sleep() {
   // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
+  SLEEP_TIME = Wake_Up_Interval-(extRTC.get%Wake_Up_Interval);
   Serial.print("Going into deep sleep mode for "); Serial.print(SLEEP_TIME/1000); Serial.print(" seconds");
   ESP.deepSleep(SLEEP_TIME, WAKE_RF_DISABLED); // remember to fix this to enable wifi
 }
@@ -251,7 +265,19 @@ void deep_sleep() {
 void upload_sensor_reading()
 {
     ThingSpeak.begin(client); 
-    int x = ThingSpeak.writeField(myChannelNumber, 1, lux, myWriteAPIKey);
+    ThingSpeak.setField(1, temp);
+    ThingSpeak.setField(2, h);
+    ThingSpeak.setField(3, p);
+    ThingSpeak.setField(4, pt);
+    // F1 Lux
+    // F2 Temp
+    // F3 Pressure
+    // F4 Humidity
+    // F5 Soil Moisture
+    // F6 Battery V
+    // F7 Battery %
+    int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+    // int x = ThingSpeak.writeField(myChannelNumber, 1, lux, myWriteAPIKey);
 
     // Check the return code
     if(x == 200){
