@@ -1,4 +1,4 @@
-// Garduino
+// [Open Source Garduino]
 
 #include <ESP8266WiFi.h>
 #include <BH1750FVI.h>
@@ -21,60 +21,67 @@
 #include <WiFiUdp.h>
 
 #include "config.h"
+
+// [Defining our secrets]
 // Wifi config
 const char ssid[] = WIFI_SSID;
 const char pass[] = WIFI_PASSWD;
 // ThingSpeak
-unsigned long myChannelNumber = MY_CHANNEL_NUMBER;  // Replace the 0 with your channel number
+unsigned long myChannelNumber[] = MY_CHANNEL_NUMBER;  // Replace the 0 with your channel number
 const char myWriteAPIKey[] = MY_WRITE_API_KEY;    // Paste your ThingSpeak Write API Key between the quotes
 
-Adafruit_BME280 bme; // I2C
+// [Create the BME280 instance]
+Adafruit_BME280 bme;    
+// [Create instances for UDP and NTP]
 WiFiUDP ntpUDP;
-DS3232RTC extRTC;
 NTPClient timeClient(ntpUDP);
-// Create the Lightsensor instance
-BH1750FVI LightSensor(BH1750FVI::k_DevModeContHighRes);
-// BH1750FVI LightSensor(BH1750FVI::k_DevModeOneTimeHighRes);
+// [Create the DS3231 RTC instance]
+DS3232RTC extRTC;
+// [Create the OLED instance] - Future ideas
 U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE);
+// [Create the Lightsensor instance]
+BH1750FVI LightSensor(BH1750FVI::k_DevModeContHighRes);
+// BH1750FVI LightSensor(BH1750FVI::k_DevModeOneTimeHighRes);   // Alternative mode
 
-// Define our GPIO pins
+// [Define our GPIO pins]
 int Moisture_Level_Sensor = A0; // select the input pin for the Moisture Sensor
 int Moisture_Level_Power = D3;  // select the pin for the Moisture Sensor Power
 int Motor_Power_Pin = D5;       // select the pin for the Water_Motor
 int Sleep_Led = D4;             // Display sleep mode
+int Config_Mode = D6;           // Boot into diagnostic mode
 
-// Moisture Sensor
-uint16_t moisture_level;
+// [Moisture Sensor variables]
+uint16_t Soil_Moisture_Level;
 uint16_t Failsafe_Moisture_Level = 20; // Moisture Level of dry soil
 uint16_t Min_Moisture_Level = 300; // Moisture Level of dry soil
 uint16_t Max_Moisture_Level = 700; // Moisture Level of wet soil
 uint16_t Max_Watering_Time = 10000; // 10 Seconds
 
-// Lux Sensor
-uint16_t lux;
-unsigned long delayTime;
+// [Light Sensor]
+uint16_t BH1750FVI_Lux;
+//unsigned long delayTime;  <--??
 
-// Battery Sensor
-float = battery_voltage;
-float = battery_percent;
-uint16_t = regulated_voltage;
+// [Battery Sensor]
+float Max17043_Battery_Voltage;
+float Max17043_Battery_Percentage;
+uint16_t Max17043_Regulated_Voltage;
 
-// BME280 Sensor
-float = external_temperature;
-float = external_pressure;
-float = external_altitude;
-float = external_humidity;
+// [BME280 Sensor]
+float BME280_Temperature;
+float BME280_Pressure;
+float BME280_Altitude;
+float BME280_Humidity;
 // Read this from the internet and store in SPIF//
 int SEALEVELPRESSURE_HPA = 1010;
 
-// Deep sleep time
+// [Deep sleep time]
 // uint16_t Wake_Up_Interval = 300;     // 5 Mins
 // uint16_t Wake_Up_Interval = 600;     // 10 Mins
 uint16_t Wake_Up_Interval = 900;        // 15 Mins
 // uint16_t Wake_Up_Interval = 1800;    // 30 Mins
-// uint16_t Wake_Up_Interval = 3600;     // 60 Mins
+// uint16_t Wake_Up_Interval = 3600;    // 60 Mins
 
-// RTC Timezone offser
+// [RTC Timezone offser]
 int timeOffset = 3600; //time offset in seconds
 
 // preinit() is called before system startup
@@ -91,11 +98,12 @@ void preinit() {
 void define_pins() {
     // Set up pin modes:
     pinMode(Moisture_Level_Power, OUTPUT);
-    digitalWrite(Moisture_Level_Power, LOW);  
+    digitalWrite(Moisture_Level_Power, LOW);
     pinMode(Motor_Power_Pin, OUTPUT);
-    digitalWrite(Motor_Power_Pin, LOW);  
+    digitalWrite(Motor_Power_Pin, LOW);
     pinMode(Sleep_Led, OUTPUT);
-    digitalWrite(Motor_Power_Pin, HIGH);  
+    digitalWrite(Motor_Power_Pin, HIGH);
+    pinMode(Config_Mode, INPUT_PULLUP);
 }
 
 void moisture_sensor_read() {
@@ -107,28 +115,28 @@ void moisture_sensor_read() {
 
 void moisture_sensor_sleep() {
     if (digitalRead(Moisture_Level_Power) == HIGH) {
-        digitalWrite(Moisture_Level_Power, LOW); // Turn on moisture sensor to make a reading
+        digitalWrite(Moisture_Level_Power, LOW); // Turn of moisture sensor to sleep
     }
 }
 
 void light_sensor_read() {
     LightSensor.wake();
-    lux = LightSensor.GetLightIntensity();
+    BH1750FVI_Lux = LightSensor.GetLightIntensity();
     LightSensor.sleep();
-    Serial.print("Light: "); Serial.println(lux);
+    Serial.print("Light: "); Serial.println(BH1750FVI_Lux);
 }
 
 void bme280_sensor_read() {
     bme.wake();
-    external_temperature = bme.readTemperature();
-    external_pressure = bme.readPressure() / 100.0F;
-    external_altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    external_humidity = bme.readHumidity();
+    BME280_Temperature = bme.readTemperature();
+    BME280_Pressure = bme.readPressure() / 100.0F;
+    BME280_Altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    BME280_Humidity = bme.readHumidity();
     bme.sleep();
-    Serial.print("Temperature = ");      Serial.print(external_temperature); Serial.println(" *C");
-    Serial.print("Pressure = ");         Serial.print(external_pressure);    Serial.println(" hPa");
-    Serial.print("Approx. Altitude = "); Serial.print(external_altitude);    Serial.println(" m");
-    Serial.print("Humidity = ");         Serial.print(external_humidity);    Serial.println(" %");
+    Serial.print("Temperature = ");      Serial.print(BME280_Temperature); Serial.println(" *C");
+    Serial.print("Pressure = ");         Serial.print(BME280_Pressure);    Serial.println(" hPa");
+    Serial.print("Approx. Altitude = "); Serial.print(BME280_Altitude);    Serial.println(" m");
+    Serial.print("Humidity = ");         Serial.print(BME280_Humidity);    Serial.println(" %");
 }
 
 void enable_water_pump();
@@ -189,13 +197,13 @@ void water_plant() {
 
 void check_battery_level() {
     FuelGauge.wake();
-    battery_percent = FuelGauge.percent();
-    regulated_voltage = FuelGauge.adc();
-    battery_voltage = FuelGauge.voltage();
+    Max17043_Battery_Percentage = FuelGauge.percent();
+    Max17043_Regulated_Voltage = FuelGauge.adc();
+    Max17043_Battery_Voltage = FuelGauge.voltage();
     
     // Sort out this case statement
 
-    // case(battery_voltage) {
+    // case(Max17043_Battery_Voltage) {
     //     <= 3.8 { 
     //         Serial.println("Battery is good");
     //         // wifi and watering pump enabled
@@ -265,19 +273,16 @@ void deep_sleep() {
 void upload_sensor_reading()
 {
     ThingSpeak.begin(client); 
-    ThingSpeak.setField(1, temp);
-    ThingSpeak.setField(2, h);
-    ThingSpeak.setField(3, p);
-    ThingSpeak.setField(4, pt);
-    // F1 Lux
-    // F2 Temp
-    // F3 Pressure
-    // F4 Humidity
-    // F5 Soil Moisture
-    // F6 Battery V
-    // F7 Battery %
+    ThingSpeak.setField(1, BH1750FVI_Lux);
+    ThingSpeak.setField(2, BME280_Temperature);
+    ThingSpeak.setField(3, BME280_Pressure);
+    ThingSpeak.setField(4, BME280_Humidity);
+    ThingSpeak.setField(5, Soil_Moisture_Level);
+    ThingSpeak.setField(6, Max17043_Battery_Voltage);
+    ThingSpeak.setField(7, Max17043_Battery_Percentage);
+
     int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
-    // int x = ThingSpeak.writeField(myChannelNumber, 1, lux, myWriteAPIKey);
+    // int x = ThingSpeak.writeField(myChannelNumber, 1, BH1750FVI_Lux, myWriteAPIKey);
 
     // Check the return code
     if(x == 200){
@@ -308,25 +313,35 @@ void set_external_RTC() {
 }
 
 void initialise_sensors() {
-    Serial.begin(9600);
     FuelGauge.begin();
     LightSensor.begin();
     bme.begin();
 
 }
 
-// void Config_Mode() {
-//     do some config stuff?
-//     Maybe turn the oled screen on
-//     turn on the web server
-//     Allow you to change the settings?
-// }
+void Config_Mode() {
+    Serial.println("Config mode entered");
+    
+
+    // do some config stuff?
+    // Maybe turn the oled screen on
+    // turn on the web server
+    // Allow you to change the settings?
+}
 
 void setup() {
+    
     define_pins();
+    Serial.begin(9600);
     initialise_sensors();
-    // check_wake_reason
-    if (ESP.getResetReason() = "Power On") {
+
+    // Config_Mode
+    if (Config_Mode == HIGH) {
+        Config_Mode();
+    }
+
+    if (EXTrtc.oscStopped() == 1) { 
+    // if (ESP.getResetReason() = "Power On") { // check_wake_reason //not sure if I want to do it this way.
         set_external_RTC();
     }
     check_battery_level();
@@ -342,11 +357,6 @@ void setup() {
     moisture_sensor_sleep();
     Serial.print("First Moisture Level: "); Serial.println(First_Moisture_Level);
 
-    // Config_Mode
-    // if (config_pin_x is HIGH) {
-    //  Config_Mode();
-    // }
-
     // if ((First_Moisture_Level > Failsafe_Moisture_Level) {
     //    && (RTC(Mins) == 0) && )
     water_plant();
@@ -356,4 +366,6 @@ void setup() {
     deep_sleep();
 }
 
-void loop() {}
+void loop() {
+    // Don't put anything here
+}
