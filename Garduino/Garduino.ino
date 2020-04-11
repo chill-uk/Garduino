@@ -67,7 +67,7 @@ uint16_t luxBH1750FVI;
 // [Battery Sensor]
 float batteryVoltageMAX17043;
 float batteryPercentageMAX17043;
-uint16_t regulatedVoltageMAX17043;
+float regulatedVoltageMAX17043;
 
 // [BME280 Sensor]
 float temperatureBME280;
@@ -77,10 +77,10 @@ float humidityBME280;
 // Read this from the internet and store in SPIF//
 int SEALEVELPRESSURE_HPA = 1010;
 
-// [Deep sleep time]
+// [Deep sleep time in minutes]
 // int sleepIntervalTime = 5;     // 5 Mins
 // int sleepIntervalTime = 10;     // 10 Mins
-int sleepIntervalTime = 15;        // 15 Mins
+int sleepIntervalTime = 900;        // 15 Mins
 // int sleepIntervalTime = 30;    // 30 Mins
 // int sleepIntervalTime = 60;    // 60 Mins
 
@@ -125,34 +125,42 @@ void disablePower(int Pin) {
 }
 
 void sensorReadBH1750FVI() {
+    LightSensor.begin();
     // Wake?
     luxBH1750FVI = LightSensor.GetLightIntensity();
     // Sleep?
-    Serial.print("Lux: "); Serial.println(luxBH1750FVI);
+    Serial.println("Lux: " + String(luxBH1750FVI));
 }
 
 void sensorReadBME280() {
+    if (!bme.begin(0x76)) {
+        Serial.println(F("Could not find a valid BME280 sensor, check wiring!"));
+    }
+    else {
     // Wake?
     temperatureBME280 = bme.readTemperature();
     pressureBME280 = bme.readPressure() / 100.0F;
     altitudeBME280 = bme.readAltitude(SEALEVELPRESSURE_HPA);
     humidityBME280 = bme.readHumidity();
     // Sleep?
-    Serial.print("Air Temperature = ");     Serial.print(temperatureBME280); Serial.println(" *C");
-    Serial.print("Air Pressure = ");        Serial.print(pressureBME280);    Serial.println(" hPa");
-    Serial.print("Approx. Altitude = ");    Serial.print(altitudeBME280);    Serial.println(" m");
-    Serial.print("Air Humidity = ");        Serial.print(humidityBME280);    Serial.println(" %");
+    Serial.println("Air Temperature = " + String(temperatureBME280) + " *C");
+    Serial.println("Air Pressure = " + String(pressureBME280) + " hPa");
+    Serial.println("Approx. Altitude = " + String(altitudeBME280) + " m");
+    Serial.println("Air Humidity = " + String(humidityBME280) + " %");
+    }
 }
 
 void sensorReadMAX17043() {
+    FuelGauge.begin();
     FuelGauge.wake();
-    batteryPercentageMAX17043 = FuelGauge.percent();
-    regulatedVoltageMAX17043 = FuelGauge.adc();
-    batteryVoltageMAX17043 = FuelGauge.voltage();
+    batteryPercentageMAX17043 = (FuelGauge.percent());
+    regulatedVoltageMAX17043 = (FuelGauge.adc());
+    batteryVoltageMAX17043 = ((FuelGauge.voltage())/1000);
+    regulatedVoltageMAX17043 = (regulatedVoltageMAX17043/1000);
     FuelGauge.sleep();
-    Serial.print("Battery Voltage = ");     Serial.print(batteryVoltageMAX17043);   Serial.println("V");
-    Serial.print("Battery Percentage = ");  Serial.print(batteryPercentageMAX17043);Serial.println("%");
-    Serial.print("Regulated Voltage = ");   Serial.print(altitudeBME280);           Serial.println("V");
+    Serial.println("Battery Voltage = " + String(batteryVoltageMAX17043) + "V");
+    Serial.println("Battery Percentage = " + String(batteryPercentageMAX17043) + "%");
+    Serial.println("Regulated Voltage = " + String(regulatedVoltageMAX17043) + "V");
 }
 
 void waterPlant() {
@@ -161,15 +169,14 @@ void waterPlant() {
     
     enablePower(moistureLevelPowerPin);
     int firstMoistureLevel = analogRead(moistureLevelSensorPin);
-    //moisture_sensor_sleep();
-    Serial.print("First Moisture Level: "); Serial.println(firstMoistureLevel);
+     Serial.println("First Moisture Level: " + String(firstMoistureLevel));
     
-    int timeMeasurement = millis();
+    int debugTimeMeasurement = millis();
     
     if ((firstMoistureLevel > failsafeMoistureLevel) && (firstMoistureLevel <= minMoistureLevel)) {
         Serial.println("Start of watering");
         int startWateringTime = millis();
-        while ((currentMoistureLevel <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime)) {
+        while ((currentMoistureLevel <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime) && (lowWaterIndicatorPin == HIGH)) {
             currentWateringTime = millis() - startWateringTime;
             currentMoistureLevel = analogRead(moistureLevelSensorPin);
             // Serial.print("Current Moisture Level: "); Serial.println(currentMoistureLevel);
@@ -188,8 +195,9 @@ void waterPlant() {
     }
     if ((firstMoistureLevel <= minMoistureLevel) && (firstMoistureLevel > failsafeMoistureLevel)) {
         Serial.println("Plant needed watering");
+        Serial.println("");
         Serial.print("Moisture Level change: "); Serial.println(currentMoistureLevel - firstMoistureLevel);  
-        Serial.print("Watering time: "); Serial.println(currentWateringTime);
+        Serial.println("Watering time: " + String(currentWateringTime));
     }
     if ((firstMoistureLevel > minMoistureLevel) && (firstMoistureLevel <= (maxMoistureLevel+50))) {
         Serial.println("Plant is happy");
@@ -197,8 +205,12 @@ void waterPlant() {
     if (firstMoistureLevel > (maxMoistureLevel+50)) {
         Serial.println("Plant is too wet");
     }
-
-    Serial.print("Execute time: "); Serial.println(millis() - timeMeasurement);
+    if (lowWaterIndicatorPin == LOW) {
+        Serial.println();
+        Serial.println("Water tank is low");
+    }
+    Serial.println();
+    Serial.print("(debug) Execute time: "); Serial.println(millis() - debugTimeMeasurement);
 }
 
 void checkBatteryLevel() {
@@ -227,20 +239,39 @@ void checkBatteryLevel() {
 
 void connectWifi()
 {
+    int maxWifiConnectionTime = 20;
+    int countDownTimer = 0;
+
     WiFi.mode(WIFI_STA);
-    Serial.print("Connecting to: ");
-    Serial.println(ssid);
+    Serial.println("Connecting to: " + String(ssid));
+    // Serial.println(ssid);
 
-    WiFi.begin(ssid, pass); 
-    while (WiFi.status() != WL_CONNECTED) 
-    {
-    //try not using delay
-    delay(500);
-    Serial.print(".");
+    WiFi.begin(ssid, pass);
+    int currentWifiConnectionTime = 0;
+    int startWifiConnectionTime = millis();
+    Serial.print("Connection time left = ");
+    while ((WiFi.status() != WL_CONNECTED) && (currentWifiConnectionTime <= (maxWifiConnectionTime*1000))) {
+        WiFi.status();
+        currentWifiConnectionTime = (millis() - startWifiConnectionTime);
+        yield();
+        // try and print seconds into Serial output
+        int countDownSeconds = (currentWifiConnectionTime/1000);
+        if (countDownSeconds == countDownTimer) {
+            Serial.print(maxWifiConnectionTime - countDownTimer);
+            Serial.print("..");
+            countDownTimer++;
+        }
     }
-
-    Serial.println("");
-    Serial.println("WiFi connected"); 
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("");
+        Serial.print("WiFi connected in "); Serial.print(currentWifiConnectionTime);    Serial.println("Seconds");
+    }
+    else {
+        Serial.println("");
+        Serial.print("Couldn't connect to wifi within the allocated time ("); Serial.print(maxWifiConnectionTime);    Serial.println("Seconds)");
+        Serial.println("Please adjust the maxWifiConnectionTime or imporve singal strength");
+        enterDeepSleep(); 
+    }
 }
 
 void disconnectWifi() {
@@ -253,13 +284,18 @@ void enterDeepSleep() {
   // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
   //  int getDay() const;
   //  int getHours() const;
-
-    int Minutes_Left = (sleepIntervalTime-(timeClient.getMinutes()%(sleepIntervalTime))-1);
+    Serial.print("Get minutes: ");    Serial.println(timeClient.getMinutes());
+    Serial.print("Get seconds: ");    Serial.println(timeClient.getSeconds());
+  //  int Minutes_Left = (sleepIntervalTime-(timeClient.getMinutes()%(sleepIntervalTime))-1);
   //  int Seconds_Left = (60-(timeClient.getSeconds()));
-    int Sleep_Time = ((Minutes_Left*60)+(60-(timeClient.getSeconds())));
-  // int Sleep_Time = Wake_Up_Interval-(extRTC.get%Wake_Up_Interval);
-  Serial.print("Going into deep sleep mode for "); Serial.print(Sleep_Time); Serial.print(" seconds");
-  ESP.deepSleep((Sleep_Time*1000), WAKE_RF_DISABLED); // remember to fix this to enable wifi
+  //  int Sleep_Time = ((Minutes_Left*60)+(60-(timeClient.getSeconds())));
+  unsigned long Sleep_Time = (sleepIntervalTime-(timeClient.getEpochTime()%sleepIntervalTime));
+  //  Serial.print("Minutes left: ");   Serial.println(Minutes_Left);
+  //  Serial.print("Sleep Time: ");     Serial.println(Sleep_Time);
+
+  Serial.print("Going into deep sleep mode for "); Serial.print(Sleep_Time); Serial.println(" seconds");
+  /// ESP.deepSleep(microseconds, mode) will put the chip into deep sleep. mode is one of WAKE_RF_DEFAULT, WAKE_RFCAL, WAKE_NO_RFCAL, WAKE_RF_DISABLED.
+  ESP.deepSleep(((Sleep_Time)*1000000), WAKE_NO_RFCAL); // remember to fix this to enable wifi
 }
 
 void uploadSensorReading()
@@ -277,14 +313,15 @@ void uploadSensorReading()
 
     // Check the return code
     if(x == 200){
-    Serial.println("Channel update successful.");
+        Serial.println("Channel update successful.");
     }
     else{
-    Serial.println("Problem updating channel. HTTP error code " + String(x));
+        Serial.println("Problem updating channel. HTTP error code " + String(x));
     }
 }
 
 void setExternalRTC() {
+    Serial.println("Setting RTC from NTP server");
     connectWifi();
     extRTC.begin();
     timeClient.begin();
@@ -303,16 +340,6 @@ void setExternalRTC() {
     }
 }
 
-void initialiseSensors() {
-    if (!FuelGauge.begin()) {
-        Serial.println(F("Could not find a valid MAX17043 sensor, check wiring!"));
-    if (!bme.begin()) {
-        Serial.println(F("Could not find a valid BME280 sensor, check wiring!"));
-    if (!LightSensor.begin()) {
-        Serial.println(F("Could not find a valid BH1750FVI sensor, check wiring!"));
-
-}
-
 void configMode() {
     Serial.println("Config mode entered");
     
@@ -327,19 +354,19 @@ void setup() {
     
     definePins();
     Serial.begin(9600);
+    Serial.println("");
     enablePower(sensorPowerPin);
 
     // configMode
     if (configModePin == HIGH) {
         configMode();
     }
-    else {
-    initialiseSensors();
-    }
-
-    if (extRTC.oscStopped() == 1) { 
+    Serial.print("extRTC.ocsStopped");  Serial.println(extRTC.oscStopped());
+    // set extRTC if stopped
+    // if (extRTC.oscStopped() == 1) { 
         setExternalRTC();
-    }
+    // }
+
     checkBatteryLevel();
 
     sensorReadBH1750FVI();
