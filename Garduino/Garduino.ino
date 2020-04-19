@@ -34,6 +34,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 // [Create the DS3231 RTC instance]
 DS3232RTC extRTC;
+
 // [Create the OLED instance] - Future ideas
 // U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/ U8X8_PIN_NONE);
 // [Create the Lightsensor instance]
@@ -78,11 +79,12 @@ float humidityBME280;
 int SEALEVELPRESSURE_HPA = 1010;
 
 // [Deep sleep time in minutes]
-// int sleepIntervalTime = 5;     // 5 Mins
-// int sleepIntervalTime = 10;     // 10 Mins
-int sleepIntervalTime = 900;        // 15 Mins
-// int sleepIntervalTime = 30;    // 30 Mins
-// int sleepIntervalTime = 60;    // 60 Mins
+// int sleepIntervalTime = 300;     // 5 Mins
+// int sleepIntervalTime = 600;     // 10 Mins
+// int sleepIntervalTime = 900;     // 15 Mins
+// int sleepIntervalTime = 1800;    // 30 Mins
+// int sleepIntervalTime = 3600;    // 60 Mins
+int sleepIntervalTime = 30;         // custom time
 
 // [RTC Timezone offser]
 int timeOffset = 3600; //time offset in seconds
@@ -152,6 +154,7 @@ void sensorReadBME280() {
 
 void sensorReadMAX17043() {
     FuelGauge.begin();
+    delay(500); //needed to wait until the sensor wakes up
     FuelGauge.wake();
     batteryPercentageMAX17043 = (FuelGauge.percent());
     regulatedVoltageMAX17043 = (FuelGauge.adc());
@@ -293,7 +296,7 @@ void enterDeepSleep() {
   //  Serial.print("Minutes left: ");   Serial.println(Minutes_Left);
   //  Serial.print("Sleep Time: ");     Serial.println(Sleep_Time);
 
-  Serial.print("Going into deep sleep mode for "); Serial.print(Sleep_Time); Serial.println(" seconds");
+  Serial.println("Going into deep sleep mode for "); Serial.print(Sleep_Time); Serial.println(" seconds");
   /// ESP.deepSleep(microseconds, mode) will put the chip into deep sleep. mode is one of WAKE_RF_DEFAULT, WAKE_RFCAL, WAKE_NO_RFCAL, WAKE_RF_DISABLED.
   ESP.deepSleep(((Sleep_Time)*1000000), WAKE_NO_RFCAL); // remember to fix this to enable wifi
 }
@@ -321,9 +324,11 @@ void uploadSensorReading()
 }
 
 void setExternalRTC() {
+
+    Serial.println();
     Serial.println("Setting RTC from NTP server");
     connectWifi();
-    extRTC.begin();
+    
     timeClient.begin();
     timeClient.setTimeOffset(timeOffset);
     timeClient.update();
@@ -338,6 +343,23 @@ void setExternalRTC() {
     else {
         Serial.println("RTC has set the system time");
     }
+}
+
+void readExtRTC() {
+    extRTC.begin();
+
+    Serial.print("extRTC.ocsStopped: ");  Serial.println(extRTC.oscStopped());
+    // set extRTC if stopped
+//    if ((extRTC.oscStopped() == 1) || (hour(t) == 00)) { 
+    if (extRTC.oscStopped() == 1) { 
+        setExternalRTC();
+    }
+    else {
+    Serial.println("extRTC seems fine");      
+    }
+
+     // time_t t = myRTC.get();
+
 }
 
 void configMode() {
@@ -361,11 +383,8 @@ void setup() {
     if (configModePin == HIGH) {
         configMode();
     }
-    Serial.print("extRTC.ocsStopped");  Serial.println(extRTC.oscStopped());
-    // set extRTC if stopped
-    // if (extRTC.oscStopped() == 1) { 
-        setExternalRTC();
-    // }
+
+    readExtRTC();
 
     checkBatteryLevel();
 
@@ -378,8 +397,8 @@ void setup() {
     //    && (RTC(Mins) == 0) && )
     waterPlant();
 
-    uploadSensorReading();
-    //updateTwitterStatus();
+    // uploadSensorReading();
+    // updateTwitterStatus();
     enterDeepSleep();
 }
 
