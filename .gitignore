@@ -1,2 +1,4 @@
 # ignore config.h
 secrets.h
+Garduino/secrets.h
+.vscode/arduino.json

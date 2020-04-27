@@ -10,6 +10,7 @@
 #include <MAX17043.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <Adafruit_INA219.h>
 
 #include <DS3232RTC.h>      // https://github.com/JChristensen/DS3232RTC
 
@@ -28,7 +29,10 @@ unsigned long myChannelNumber = MY_CHANNEL_NUMBER;  // Replace the 0 with your c
 const char * myWriteAPIKey = MY_WRITE_API_KEY;    // Paste your ThingSpeak Write API Key between the quotes
 
 // [Create the BME280 instance]
-Adafruit_BME280 bme;    
+Adafruit_BME280 bme;
+// [Create the INA219 instance]
+Adafruit_INA219 ina219;
+
 // [Create instances for UDP and NTP]
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
@@ -70,11 +74,19 @@ float batteryVoltageMAX17043;
 float batteryPercentageMAX17043;
 float regulatedVoltageMAX17043;
 
+// [INA219 Sensor]
+float solarShuntVoltage = 0;
+float solarBusVoltage = 0;
+float solarCurrent_mA = 0;
+float solarLoadVoltage = 0;
+float solarPower_mW = 0;
+
 // [BME280 Sensor]
 float temperatureBME280;
 float pressureBME280;
 float altitudeBME280;
 float humidityBME280;
+
 // Read this from the internet and store in SPIF//
 int SEALEVELPRESSURE_HPA = 1010;
 
@@ -84,10 +96,18 @@ int SEALEVELPRESSURE_HPA = 1010;
 // int sleepIntervalTime = 900;     // 15 Mins
 // int sleepIntervalTime = 1800;    // 30 Mins
 // int sleepIntervalTime = 3600;    // 60 Mins
-int sleepIntervalTime = 30;         // custom time
+// int sleepIntervalTime = 30;         // custom time
+
+time_t t;
+    
+unsigned long sleepTime;              // Calculated sleep time variable
+uint16_t interval = 900;              // Sleep time in seconds
+uint16_t timeErrorAdjustment = 1030;  // Adjustment in % * 10
+// uint16_t timeErrorAdjustment = 1030;  // Sleep clock is slow by +3%
+// uint16_t timeErrorAdjustment = 970;  //  Sleep clock is fast by +3%
 
 // [RTC Timezone offser]
-int timeOffset = 3600; //time offset in seconds
+uint16_t timeOffset = 3600; //time offset in seconds
 
 // preinit() is called before system startup
 // from nonos-sdk's user entry point user_init()
@@ -127,7 +147,7 @@ void disablePower(int Pin) {
 }
 
 void sensorReadBH1750FVI() {
-    LightSensor.begin();
+    // LightSensor.begin();
     // Wake?
     luxBH1750FVI = LightSensor.GetLightIntensity();
     // Sleep?
@@ -135,10 +155,10 @@ void sensorReadBH1750FVI() {
 }
 
 void sensorReadBME280() {
-    if (!bme.begin(0x76)) {
-        Serial.println(F("Could not find a valid BME280 sensor, check wiring!"));
-    }
-    else {
+    // if (!bme.begin(0x76)) {
+    //     Serial.println(F("Could not find a valid BME280 sensor, check wiring!"));
+    // }
+    // else {
     // Wake?
     temperatureBME280 = bme.readTemperature();
     pressureBME280 = bme.readPressure() / 100.0F;
@@ -149,13 +169,13 @@ void sensorReadBME280() {
     Serial.println("Air Pressure = " + String(pressureBME280) + " hPa");
     Serial.println("Approx. Altitude = " + String(altitudeBME280) + " m");
     Serial.println("Air Humidity = " + String(humidityBME280) + " %");
-    }
+    // }
 }
 
 void sensorReadMAX17043() {
-    FuelGauge.begin();
-    delay(500); //needed to wait until the sensor wakes up
-    FuelGauge.wake();
+    // FuelGauge.begin();
+    // FuelGauge.wake();
+    // delay(500); //needed to wait until the sensor wakes up
     batteryPercentageMAX17043 = (FuelGauge.percent());
     regulatedVoltageMAX17043 = (FuelGauge.adc());
     batteryVoltageMAX17043 = ((FuelGauge.voltage())/1000);
@@ -164,6 +184,21 @@ void sensorReadMAX17043() {
     Serial.println("Battery Voltage = " + String(batteryVoltageMAX17043) + "V");
     Serial.println("Battery Percentage = " + String(batteryPercentageMAX17043) + "%");
     Serial.println("Regulated Voltage = " + String(regulatedVoltageMAX17043) + "V");
+}
+
+void sensorReadINA219() {
+    solarShuntVoltage = ina219.getShuntVoltage_mV();
+    solarBusVoltage = ina219.getBusVoltage_V();
+    solarCurrent_mA = ina219.getCurrent_mA();
+    solarPower_mW = ina219.getPower_mW();
+    solarLoadVoltage = solarBusVoltage + (solarShuntVoltage / 1000);
+    
+    Serial.print("Bus Voltage:   "); Serial.print(solarBusVoltage); Serial.println(" V");
+    Serial.print("Shunt Voltage: "); Serial.print(solarShuntVoltage); Serial.println(" mV");
+    Serial.print("Load Voltage:  "); Serial.print(solarLoadVoltage); Serial.println(" V");
+    Serial.print("Current:       "); Serial.print(solarCurrent_mA); Serial.println(" mA");
+    Serial.print("Power:         "); Serial.print(solarPower_mW); Serial.println(" mW");
+    Serial.println("");
 }
 
 void waterPlant() {
@@ -284,34 +319,38 @@ void disconnectWifi() {
 }
 
 void enterDeepSleep() {
-  // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
-  //  int getDay() const;
-  //  int getHours() const;
+    // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
+    //  int getDay() const;
+    //  int getHours() const;
+    disconnectWifi();
     Serial.print("Get minutes: ");    Serial.println(timeClient.getMinutes());
     Serial.print("Get seconds: ");    Serial.println(timeClient.getSeconds());
-  //  int Minutes_Left = (sleepIntervalTime-(timeClient.getMinutes()%(sleepIntervalTime))-1);
-  //  int Seconds_Left = (60-(timeClient.getSeconds()));
-  //  int Sleep_Time = ((Minutes_Left*60)+(60-(timeClient.getSeconds())));
-  unsigned long Sleep_Time = (sleepIntervalTime-(timeClient.getEpochTime()%sleepIntervalTime));
-  //  Serial.print("Minutes left: ");   Serial.println(Minutes_Left);
-  //  Serial.print("Sleep Time: ");     Serial.println(Sleep_Time);
 
-  Serial.println("Going into deep sleep mode for "); Serial.print(Sleep_Time); Serial.println(" seconds");
-  /// ESP.deepSleep(microseconds, mode) will put the chip into deep sleep. mode is one of WAKE_RF_DEFAULT, WAKE_RFCAL, WAKE_NO_RFCAL, WAKE_RF_DISABLED.
-  ESP.deepSleep(((Sleep_Time)*1000000), WAKE_NO_RFCAL); // remember to fix this to enable wifi
+    Serial.print("Sleep time: ");
+    sleepTime = ((interval-(extRTC.get()%interval))*(timeErrorAdjustment));  // Sleep time in milliseconds (mS)
+    Serial.print(sleepTime/1000); // sleep time in seconds (S)
+    Serial.println(" seconds");
+    disablePower(sensorPowerPin);  
+    ESP.deepSleep(((sleepTime)*1000), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
 }
 
 void uploadSensorReading()
 {
+    if (WiFi.status() != WL_CONNECTED) {
+        connectWifi();
+    }
+    
     ThingSpeak.begin(client); 
     ThingSpeak.setField(1, luxBH1750FVI);
     ThingSpeak.setField(2, temperatureBME280);
-    ThingSpeak.setField(3, pressureBME280);
-    ThingSpeak.setField(4, humidityBME280);
-    ThingSpeak.setField(5, soilMoistureLevel);
-    ThingSpeak.setField(6, batteryVoltageMAX17043);
-    ThingSpeak.setField(7, batteryPercentageMAX17043);
+    ThingSpeak.setField(3, humidityBME280);
+    ThingSpeak.setField(4, soilMoistureLevel);
+    ThingSpeak.setField(5, batteryVoltageMAX17043);
+    ThingSpeak.setField(6, batteryPercentageMAX17043);
+    ThingSpeak.setField(7, solarLoadVoltage);
+    ThingSpeak.setField(8, solarCurrent_mA);
 
+    
     int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
 
     // Check the return code
@@ -327,7 +366,9 @@ void setExternalRTC() {
 
     Serial.println();
     Serial.println("Setting RTC from NTP server");
-    connectWifi();
+    if (WiFi.status() != WL_CONNECTED) {
+        connectWifi();
+    }
     
     timeClient.begin();
     timeClient.setTimeOffset(timeOffset);
@@ -346,12 +387,17 @@ void setExternalRTC() {
 }
 
 void readExtRTC() {
-    extRTC.begin();
-
+    char buf[40];
+    t = extRTC.get();
+//    Serial.println(myRTC.get());    
+    Serial.println(t);  
+    sprintf(buf, "%.2d:%.2d:%.2d %.2d%s%d ",
+    hour(t), minute(t), second(t), day(t), monthShortStr(month(t)), year(t)); 
+    Serial.println(buf);   
     Serial.print("extRTC.ocsStopped: ");  Serial.println(extRTC.oscStopped());
     // set extRTC if stopped
-//    if ((extRTC.oscStopped() == 1) || (hour(t) == 00)) { 
-    if (extRTC.oscStopped() == 1) { 
+    if ((extRTC.oscStopped() == 1) || (hour(t) == 00) || (year(t) == 1970)) { 
+    // if (year(t) == 1970) { 
         setExternalRTC();
     }
     else {
@@ -372,11 +418,22 @@ void configMode() {
     // Allow you to change the settings?
 }
 
+void enablePeripherals() {
+    Serial.begin(9600);
+    extRTC.begin();
+    FuelGauge.begin();
+    FuelGauge.wake();
+    ina219.begin();
+    ina219.setCalibration_16V_400mA();
+    bme.begin(0x76);
+    LightSensor.begin();
+    Serial.println("");
+}
+
 void setup() {
     
     definePins();
-    Serial.begin(9600);
-    Serial.println("");
+    enablePeripherals();
     enablePower(sensorPowerPin);
 
     // configMode
@@ -384,20 +441,23 @@ void setup() {
         configMode();
     }
 
+    // Enable wifi at start for debugging
+    if (WiFi.status() != WL_CONNECTED) {
+        connectWifi();
+    }
     readExtRTC();
-
     checkBatteryLevel();
-
     sensorReadBH1750FVI();
     //bme.takeForcedMeasurement(); // has no effect in normal mode
     sensorReadBME280();
+    sensorReadINA219();
     disablePower(sensorPowerPin);
 
     // if ((firstMoistureLevel > failsafeMoistureLevel) {
     //    && (RTC(Mins) == 0) && )
-    waterPlant();
+    // waterPlant();
 
-    // uploadSensorReading();
+    uploadSensorReading();
     // updateTwitterStatus();
     enterDeepSleep();
 }
