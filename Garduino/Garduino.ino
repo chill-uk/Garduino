@@ -102,7 +102,7 @@ time_t t;
     
 unsigned long sleepTime;              // Calculated sleep time variable
 uint16_t interval = 900;              // Sleep time in seconds
-uint16_t timeErrorAdjustment = 1050;  // Adjustment in % * 10
+uint16_t timeErrorAdjustment = 1070;  // Adjustment in % * 10
 // uint16_t timeErrorAdjustment = 1030;  // Sleep clock is slow by +3%
 // uint16_t timeErrorAdjustment = 970;  //  Sleep clock is fast by +3%
 
@@ -201,12 +201,19 @@ void sensorReadINA219() {
     Serial.println("");
 }
 
+void readMoistureSensor() {
+    enablePower(moistureLevelPowerPin);
+    soilMoistureLevel = analogRead(moistureLevelSensorPin);
+    Serial.print("Soil Moisture Level: "); Serial.println(soilMoistureLevel);
+    disablePower(moistureLevelPowerPin);
+}
+
 void waterPlant() {
     int currentMoistureLevel = 0;
     int currentWateringTime = 0;
-    
     enablePower(moistureLevelPowerPin);
-    int firstMoistureLevel = analogRead(moistureLevelSensorPin);
+    int firstMoistureLevel = analogRead(moistureLevelSensorPin);    
+    // readMoistureSensor();
      Serial.println("First Moisture Level: " + String(firstMoistureLevel));
     
     int debugTimeMeasurement = millis();
@@ -399,7 +406,7 @@ void readExtRTC() {
     Serial.println(buf);   
     Serial.print("extRTC.ocsStopped: ");  Serial.println(extRTC.oscStopped());
     // set extRTC if stopped
-    if ((extRTC.oscStopped() == 1) || ((month(t) == 01) && (day(t) == 01) && (hour(t) == 00)) || (t <= 0)) { 
+    if ((extRTC.oscStopped() == 1) || ((day(t) == 01) && (hour(t) == 00) && (minute(t) == 00)) || (t <= 1000)) { 
     // if (year(t) == 1970) { 
         setExternalRTC();
     }
@@ -451,6 +458,7 @@ void setup() {
     }
     readExtRTC();
     checkBatteryLevel();
+    readMoistureSensor();
     sensorReadBH1750FVI();
     //bme.takeForcedMeasurement(); // has no effect in normal mode
     sensorReadBME280();
