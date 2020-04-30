@@ -102,7 +102,7 @@ time_t t;
     
 unsigned long sleepTime;              // Calculated sleep time variable
 uint16_t interval = 900;              // Sleep time in seconds
-uint16_t timeErrorAdjustment = 1030;  // Adjustment in % * 10
+uint16_t timeErrorAdjustment = 1050;  // Adjustment in % * 10
 // uint16_t timeErrorAdjustment = 1030;  // Sleep clock is slow by +3%
 // uint16_t timeErrorAdjustment = 970;  //  Sleep clock is fast by +3%
 
@@ -323,8 +323,9 @@ void enterDeepSleep() {
     //  int getDay() const;
     //  int getHours() const;
     disconnectWifi();
-    Serial.print("Get minutes: ");    Serial.println(timeClient.getMinutes());
-    Serial.print("Get seconds: ");    Serial.println(timeClient.getSeconds());
+    // Serial.print("Get internal minutes: ");    Serial.println(timeClient.getMinutes());
+    // Serial.print("Get internal seconds: ");    Serial.println(timeClient.getSeconds());
+    
 
     Serial.print("Sleep time: ");
     sleepTime = ((interval-(extRTC.get()%interval))*(timeErrorAdjustment));  // Sleep time in milliseconds (mS)
@@ -377,7 +378,9 @@ void setExternalRTC() {
     extRTC.set(timeClient.getEpochTime());
 
     setSyncProvider(extRTC.get);   // the function to get the time from the RTC
-    Serial.println(timeStatus());
+    // Serial.println(timeStatus());
+    Serial.print("extRTC post-epoch"); Serial.println(extRTC.get());
+    Serial.print("Internal post-epoch"); Serial.println(timeClient.getEpochTime());
     if(timeStatus() != timeSet){
         Serial.println("Unable to sync with the RTC");
     }
@@ -390,18 +393,19 @@ void readExtRTC() {
     char buf[40];
     t = extRTC.get();
 //    Serial.println(myRTC.get());    
-    Serial.println(t);  
+    Serial.print("extRTC pre-epoch"); Serial.println(t);
     sprintf(buf, "%.2d:%.2d:%.2d %.2d%s%d ",
     hour(t), minute(t), second(t), day(t), monthShortStr(month(t)), year(t)); 
     Serial.println(buf);   
     Serial.print("extRTC.ocsStopped: ");  Serial.println(extRTC.oscStopped());
     // set extRTC if stopped
-    if ((extRTC.oscStopped() == 1) || (hour(t) == 00) || (year(t) == 1970)) { 
+    if ((extRTC.oscStopped() == 1) || ((month(t) == 01) && (day(t) == 01) && (hour(t) == 00)) || (t <= 0)) { 
     // if (year(t) == 1970) { 
         setExternalRTC();
     }
     else {
-    Serial.println("extRTC seems fine");      
+    Serial.println("extRTC seems fine"); 
+    setSyncProvider(extRTC.get);   // the function to get the time from the RTC
     }
 
      // time_t t = myRTC.get();
