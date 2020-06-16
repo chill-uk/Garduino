@@ -1,5 +1,8 @@
 # Garduino
 
+Version 1 is running here:
+https://thingspeak.com/channels/1039235
+
 The idea is to create application in parts:
 
 1) Read Moisture level
