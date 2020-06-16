@@ -11,9 +11,9 @@ void setup() {
 }
 
 void loop() {
-  // Reading potentiometer value
+  // Reading Capacitive Soil value
   sensorValue = analogRead(sensorPin);
-  // Sensor value is 1400 when completely wet and 3400 when dry
+  // Sensor value has been meased to be 1400 when completely wet and 3400 when dry
   sensorMappedValue = map(sensorValue, 1400, 3400, 0, 100);
   Serial.println(sensorMappedValue);
   delay(500);
