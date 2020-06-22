@@ -91,17 +91,16 @@ float humidityBME280;
 int SEALEVELPRESSURE_HPA = 1010;
 
 // [Deep sleep time in minutes]
-// int sleepIntervalTime = 300;     // 5 Mins
-// int sleepIntervalTime = 600;     // 10 Mins
-// int sleepIntervalTime = 900;     // 15 Mins
-// int sleepIntervalTime = 1800;    // 30 Mins
-// int sleepIntervalTime = 3600;    // 60 Mins
-// int sleepIntervalTime = 30;         // custom time
+//uint16_t interval = 300;     // 5 Mins
+//uint16_t interval = 600;     // 10 Mins
+uint16_t interval = 900;     // 15 Mins
+//uint16_t interval = 1800;    // 30 Mins
+//uint16_t interval = 3600;    // 60 Mins
+//uint16_t interval = 30;         // custom time
 
 time_t t;
     
 unsigned long sleepTime;              // Calculated sleep time variable
-uint16_t interval = 900;              // Sleep time in seconds
 uint16_t timeErrorAdjustment = 1070;  // Adjustment in % * 10
 // uint16_t timeErrorAdjustment = 1030;  // Sleep clock is slow by +3%
 // uint16_t timeErrorAdjustment = 970;  //  Sleep clock is fast by +3%
@@ -202,55 +201,53 @@ void sensorReadINA219() {
 }
 
 void readMoistureSensor() {
-    enablePower(moistureLevelPowerPin);
+    // enablePower(moistureLevelPowerPin);
+    digitalWrite(moistureLevelPowerPin, HIGH);
     soilMoistureLevel = analogRead(moistureLevelSensorPin);
     Serial.print("Soil Moisture Level: "); Serial.println(soilMoistureLevel);
-    disablePower(moistureLevelPowerPin);
+    // disablePower(moistureLevelPowerPin);
+    digitalWrite(moistureLevelPowerPin, LOW);
+
 }
 
 void waterPlant() {
     int currentMoistureLevel = 0;
     int currentWateringTime = 0;
     enablePower(moistureLevelPowerPin);
-    int firstMoistureLevel = analogRead(moistureLevelSensorPin);    
-    // readMoistureSensor();
-     Serial.println("First Moisture Level: " + String(firstMoistureLevel));
-    
+   
     int debugTimeMeasurement = millis();
     
-    if ((firstMoistureLevel > failsafeMoistureLevel) && (firstMoistureLevel <= minMoistureLevel)) {
+    if ((soilMoistureLevel > failsafeMoistureLevel) && (soilMoistureLevel <= minMoistureLevel)) {
         Serial.println("Start of watering");
         int startWateringTime = millis();
-        while ((currentMoistureLevel <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime) && (lowWaterIndicatorPin == HIGH)) {
+        while ((currentMoistureLevel <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime) && (digitalRead(lowWaterIndicatorPin) == HIGH)) {
             currentWateringTime = millis() - startWateringTime;
             currentMoistureLevel = analogRead(moistureLevelSensorPin);
-            // Serial.print("Current Moisture Level: "); Serial.println(currentMoistureLevel);
-            // Serial.print("Max Moisture Level: "); Serial.println(maxMoistureLevel);
             enablePower(waterPumpPin);
             yield();
-        // delay(100);
         }
+        
     }
     disablePower(moistureLevelPowerPin);
     disablePower(waterPumpPin);
 
 // clean the following code up a bit
-    if (firstMoistureLevel <= failsafeMoistureLevel) {
+    if (soilMoistureLevel <= failsafeMoistureLevel) {
         Serial.println("Moisture Sensor broken or disconnected");
     }
-    if ((firstMoistureLevel <= minMoistureLevel) && (firstMoistureLevel > failsafeMoistureLevel)) {
+    if ((soilMoistureLevel <= minMoistureLevel) && (soilMoistureLevel > failsafeMoistureLevel)) {
         Serial.println("Plant needed watering");
-        Serial.println("");
-        Serial.print("Moisture Level change: "); Serial.println(currentMoistureLevel - firstMoistureLevel);  
+        Serial.print("Moisture Level after watering: "); Serial.println(currentMoistureLevel);
+        Serial.print("Moisture Level change: "); Serial.println(currentMoistureLevel - soilMoistureLevel);  
         Serial.println("Watering time: " + String(currentWateringTime));
     }
-    if ((firstMoistureLevel > minMoistureLevel) && (firstMoistureLevel <= (maxMoistureLevel+50))) {
+    if ((soilMoistureLevel > minMoistureLevel) && (soilMoistureLevel <= (maxMoistureLevel+50))) {
         Serial.println("Plant is happy");
     }
-    if (firstMoistureLevel > (maxMoistureLevel+50)) {
+    if (soilMoistureLevel > (maxMoistureLevel+50)) {
         Serial.println("Plant is too wet");
     }
-    if (lowWaterIndicatorPin == LOW) {
+    if (digitalRead(lowWaterIndicatorPin) == LOW) {
         Serial.println();
         Serial.println("Water tank is low");
     }
@@ -315,7 +312,8 @@ void connectWifi()
         Serial.println("");
         Serial.print("Couldn't connect to wifi within the allocated time ("); Serial.print(maxWifiConnectionTime);    Serial.println("Seconds)");
         Serial.println("Please adjust the maxWifiConnectionTime or imporve singal strength");
-        enterDeepSleep(); 
+         disablePower(sensorPowerPin);  
+         ESP.deepSleep((15e6), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
     }
 }
 
@@ -327,12 +325,7 @@ void disconnectWifi() {
 
 void enterDeepSleep() {
     // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
-    //  int getDay() const;
-    //  int getHours() const;
     disconnectWifi();
-    // Serial.print("Get internal minutes: ");    Serial.println(timeClient.getMinutes());
-    // Serial.print("Get internal seconds: ");    Serial.println(timeClient.getSeconds());
-    
 
     Serial.print("Sleep time: ");
     sleepTime = ((interval-(extRTC.get()%interval))*(timeErrorAdjustment));  // Sleep time in milliseconds (mS)
@@ -390,6 +383,9 @@ void setExternalRTC() {
     Serial.print("Internal post-epoch"); Serial.println(timeClient.getEpochTime());
     if(timeStatus() != timeSet){
         Serial.println("Unable to sync with the RTC");
+         disablePower(sensorPowerPin);  
+         ESP.deepSleep((15e6), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
+
     }
     else {
         Serial.println("RTC has set the system time");
@@ -445,29 +441,29 @@ void setup() {
     
     definePins();
     enablePeripherals();
-    enablePower(sensorPowerPin);
+    // enablePower(sensorPowerPin);
 
-    // configMode
+    // [configMode]
     if (configModePin == HIGH) {
         configMode();
     }
 
     // Enable wifi at start for debugging
-    if (WiFi.status() != WL_CONNECTED) {
-        connectWifi();
-    }
+//    if (WiFi.status() != WL_CONNECTED) {
+//        connectWifi();
+//    }
     readExtRTC();
     checkBatteryLevel();
     readMoistureSensor();
     sensorReadBH1750FVI();
-    //bme.takeForcedMeasurement(); // has no effect in normal mode
+    bme.takeForcedMeasurement(); // has no effect in normal mode
     sensorReadBME280();
     sensorReadINA219();
-    disablePower(sensorPowerPin);
+    // disablePower(sensorPowerPin);
 
-    // if ((firstMoistureLevel > failsafeMoistureLevel) {
+    // if ((soilMoistureLevel > failsafeMoistureLevel) {
     //    && (RTC(Mins) == 0) && )
-    // waterPlant();
+    waterPlant();
 
     uploadSensorReading();
     // updateTwitterStatus();
