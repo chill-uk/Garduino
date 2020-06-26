@@ -59,13 +59,15 @@ int lowWaterIndicatorPin = D7;   // Low water level indicator
 int configModePin = D8;          // Button to enable booting into diagnostic mode
 
 // [Moisture Sensor variables]
+// bool capacitiveSensor = true;  // Uncomment this if you have a capacitive soil moisture sensor
 uint16_t soilMoistureLevel;
-uint16_t failsafeMoistureLevel = 20;  // Moisture Level of dry soil
-uint16_t minMoistureLevel = 300;      // Moisture Level of dry soil
-uint16_t maxMoistureLevel = 700;      // Moisture Level of wet soil
-uint16_t maxWateringTime = 10000;     // 10 Seconds
+uint16_t failsafeMoistureLevel = 3;  // Moisture Level of dry soil
+uint16_t minMoistureLevel = 30;      // Moisture Level of dry soil
+uint16_t maxMoistureLevel = 70;      // Moisture Level of wet soil
+uint16_t maxWateringTime = 10000;    // 10 Seconds
 
 // [Start and End watering times]
+// I might want to perform a sunrise/sunset api call to automate this.
 uint16_t startWateringTime = 08;
 uint16_t endWateringTime = 20;
 
@@ -195,13 +197,17 @@ void sensorReadINA219() {
 }
 
 void readMoistureSensor() {
-    enablePower(moistureLevelPowerPin);
-    // digitalWrite(moistureLevelPowerPin, HIGH);
-    soilMoistureLevel = analogRead(moistureLevelSensorPin);
+    sensorValue = analogRead(moistureLevelSensorPin);
+    if (capacitiveSensor == true) {
+        // Map capacitive readings to percentages
+        soilMoisureLevel = map(sensorValue, 1400, 3400, 0, 100);
+    }
+    else {
+        // Map conductive reading to percentages
+        soilMoisureLevel = map(sensorValue, 0, 1023, 0, 100);
+    }
     Serial.print("Soil Moisture Level: "); Serial.println(soilMoistureLevel);
-    disablePower(moistureLevelPowerPin);
-    // digitalWrite(moistureLevelPowerPin, LOW);
-
+    return soilMoistureLevel;
 }
 
 void waterPlant() {
@@ -209,17 +215,15 @@ void waterPlant() {
     int currentWateringTime = 0;
     int debugTimeMeasurement = millis();
     
-    if ((soilMoistureLevel > failsafeMoistureLevel) && (soilMoistureLevel <= minMoistureLevel)) {
+    if ((failsafeMoistureLevel < soilMoistureLevel ) && (soilMoistureLevel <= minMoistureLevel)) {
         Serial.println("Start of watering");
         int startWateringTime = millis();
-        enablePower(moistureLevelPowerPin);
         enablePower(waterPumpPin);
         while ((currentMoistureLevel <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime) && (digitalRead(lowWaterIndicatorPin) == HIGH)) {
             currentWateringTime = millis() - startWateringTime;
-            currentMoistureLevel = analogRead(moistureLevelSensorPin);
+            currentMoistureLevel = readMoistureSensor();
             yield();
         }
-        disablePower(moistureLevelPowerPin);
         disablePower(waterPumpPin);
     }
 
@@ -441,15 +445,19 @@ void setup() {
     readExtRTC();
 
     checkBatteryLevel();
-    readMoistureSensor();
     sensorReadBH1750FVI();
     bme.takeForcedMeasurement(); // has no effect in normal mode
     sensorReadBME280();
     sensorReadINA219();
 
+    enablePower(moistureLevelPowerPin);
+    // digitalWrite(moistureLevelPowerPin, HIGH);
+    readMoistureSensor();
     if (startWateringTime <= (hour(t)) && (hour(t) < endWateringTime) { 
         waterPlant();
     }
+    disablePower(moistureLevelPowerPin);
+    // digitalWrite(moistureLevelPowerPin, LOW);
 
     uploadSensorReading();
     // updateTwitterStatus();
