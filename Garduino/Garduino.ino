@@ -65,9 +65,12 @@ uint16_t minMoistureLevel = 300;      // Moisture Level of dry soil
 uint16_t maxMoistureLevel = 700;      // Moisture Level of wet soil
 uint16_t maxWateringTime = 10000;     // 10 Seconds
 
+// [Start and End watering times]
+uint16_t startWateringTime = 08;
+uint16_t endWateringTime = 20;
+
 // [Light Sensor]
 uint16_t luxBH1750FVI;
-//unsigned long delayTime;  <--??
 
 // [Battery Sensor]
 float batteryVoltageMAX17043;
@@ -93,13 +96,15 @@ int SEALEVELPRESSURE_HPA = 1010;
 // [Deep sleep time in minutes]
 //uint16_t interval = 300;     // 5 Mins
 //uint16_t interval = 600;     // 10 Mins
-uint16_t interval = 900;     // 15 Mins
+uint16_t interval = 900;       // 15 Mins
 //uint16_t interval = 1800;    // 30 Mins
 //uint16_t interval = 3600;    // 60 Mins
-//uint16_t interval = 30;         // custom time
+//uint16_t interval = 30;      // custom time
 
+// [Time structure]
 time_t t;
-    
+
+// [Deep sleep time with compensation]
 unsigned long sleepTime;              // Calculated sleep time variable
 uint16_t timeErrorAdjustment = 1070;  // Adjustment in % * 10
 // uint16_t timeErrorAdjustment = 1030;  // Sleep clock is slow by +3%
@@ -107,10 +112,6 @@ uint16_t timeErrorAdjustment = 1070;  // Adjustment in % * 10
 
 // [RTC Timezone offser]
 uint16_t timeOffset = 3600; //time offset in seconds
-
-// [Start and End watering times]
-uint16_t startWateringTime = 08;
-uint16_t endWateringTime = 20;
 
 // preinit() is called before system startup
 // from nonos-sdk's user entry point user_init()
