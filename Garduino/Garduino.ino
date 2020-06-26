@@ -108,6 +108,10 @@ uint16_t timeErrorAdjustment = 1070;  // Adjustment in % * 10
 // [RTC Timezone offser]
 uint16_t timeOffset = 3600; //time offset in seconds
 
+// [Start and End watering times]
+uint16_t startWateringTime = 08;
+uint16_t endWateringTime = 20;
+
 // preinit() is called before system startup
 // from nonos-sdk's user entry point user_init()
 
@@ -146,19 +150,11 @@ void disablePower(int Pin) {
 }
 
 void sensorReadBH1750FVI() {
-    // LightSensor.begin();
-    // Wake?
     luxBH1750FVI = LightSensor.GetLightIntensity();
-    // Sleep?
     Serial.println("Lux: " + String(luxBH1750FVI));
 }
 
 void sensorReadBME280() {
-    // if (!bme.begin(0x76)) {
-    //     Serial.println(F("Could not find a valid BME280 sensor, check wiring!"));
-    // }
-    // else {
-    // Wake?
     temperatureBME280 = bme.readTemperature();
     pressureBME280 = bme.readPressure() / 100.0F;
     altitudeBME280 = bme.readAltitude(SEALEVELPRESSURE_HPA);
@@ -172,9 +168,6 @@ void sensorReadBME280() {
 }
 
 void sensorReadMAX17043() {
-    // FuelGauge.begin();
-    // FuelGauge.wake();
-    // delay(500); //needed to wait until the sensor wakes up
     batteryPercentageMAX17043 = (FuelGauge.percent());
     regulatedVoltageMAX17043 = (FuelGauge.adc());
     batteryVoltageMAX17043 = ((FuelGauge.voltage())/1000);
@@ -201,35 +194,33 @@ void sensorReadINA219() {
 }
 
 void readMoistureSensor() {
-    // enablePower(moistureLevelPowerPin);
-    digitalWrite(moistureLevelPowerPin, HIGH);
+    enablePower(moistureLevelPowerPin);
+    // digitalWrite(moistureLevelPowerPin, HIGH);
     soilMoistureLevel = analogRead(moistureLevelSensorPin);
     Serial.print("Soil Moisture Level: "); Serial.println(soilMoistureLevel);
-    // disablePower(moistureLevelPowerPin);
-    digitalWrite(moistureLevelPowerPin, LOW);
+    disablePower(moistureLevelPowerPin);
+    // digitalWrite(moistureLevelPowerPin, LOW);
 
 }
 
 void waterPlant() {
     int currentMoistureLevel = 0;
     int currentWateringTime = 0;
-    enablePower(moistureLevelPowerPin);
-   
     int debugTimeMeasurement = millis();
     
     if ((soilMoistureLevel > failsafeMoistureLevel) && (soilMoistureLevel <= minMoistureLevel)) {
         Serial.println("Start of watering");
         int startWateringTime = millis();
+        enablePower(moistureLevelPowerPin);
+        enablePower(waterPumpPin);
         while ((currentMoistureLevel <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime) && (digitalRead(lowWaterIndicatorPin) == HIGH)) {
             currentWateringTime = millis() - startWateringTime;
             currentMoistureLevel = analogRead(moistureLevelSensorPin);
-            enablePower(waterPumpPin);
             yield();
         }
-        
+        disablePower(moistureLevelPowerPin);
+        disablePower(waterPumpPin);
     }
-    disablePower(moistureLevelPowerPin);
-    disablePower(waterPumpPin);
 
 // clean the following code up a bit
     if (soilMoistureLevel <= failsafeMoistureLevel) {
@@ -378,7 +369,6 @@ void setExternalRTC() {
     extRTC.set(timeClient.getEpochTime());
 
     setSyncProvider(extRTC.get);   // the function to get the time from the RTC
-    // Serial.println(timeStatus());
     Serial.print("extRTC post-epoch"); Serial.println(extRTC.get());
     Serial.print("Internal post-epoch"); Serial.println(timeClient.getEpochTime());
     if(timeStatus() != timeSet){
@@ -395,15 +385,16 @@ void setExternalRTC() {
 void readExtRTC() {
     char buf[40];
     t = extRTC.get();
-//    Serial.println(myRTC.get());    
+
     Serial.print("extRTC pre-epoch"); Serial.println(t);
     sprintf(buf, "%.2d:%.2d:%.2d %.2d%s%d ",
     hour(t), minute(t), second(t), day(t), monthShortStr(month(t)), year(t)); 
     Serial.println(buf);   
-    Serial.print("extRTC.ocsStopped: ");  Serial.println(extRTC.oscStopped());
-    // set extRTC if stopped
-    if ((extRTC.oscStopped() == 1) || ((day(t) == 01) && (hour(t) == 00) && (minute(t) == 00)) || (t <= 1000)) { 
-    // if (year(t) == 1970) { 
+    // Serial.print("extRTC.ocsStopped: ");  Serial.println(extRTC.oscStopped());
+
+    // set extRTC if stopped -- Maybe check if year is 1970?
+    // if ((extRTC.oscStopped() == 1) || ((day(t) == 01) && (hour(t) == 00) && (minute(t) == 00)) || (t <= 1000)) { 
+    if ((extRTC.oscStopped() == 1) || (year(t) == 1970) || (t <= 1000)) {
         setExternalRTC();
     }
     else {
@@ -411,7 +402,6 @@ void readExtRTC() {
     setSyncProvider(extRTC.get);   // the function to get the time from the RTC
     }
 
-     // time_t t = myRTC.get();
 
 }
 
@@ -441,29 +431,24 @@ void setup() {
     
     definePins();
     enablePeripherals();
-    // enablePower(sensorPowerPin);
 
     // [configMode]
     if (configModePin == HIGH) {
         configMode();
     }
 
-    // Enable wifi at start for debugging
-//    if (WiFi.status() != WL_CONNECTED) {
-//        connectWifi();
-//    }
     readExtRTC();
+
     checkBatteryLevel();
     readMoistureSensor();
     sensorReadBH1750FVI();
     bme.takeForcedMeasurement(); // has no effect in normal mode
     sensorReadBME280();
     sensorReadINA219();
-    // disablePower(sensorPowerPin);
 
-    // if ((soilMoistureLevel > failsafeMoistureLevel) {
-    //    && (RTC(Mins) == 0) && )
-    waterPlant();
+    if (startWateringTime <= (hour(t)) && (hour(t) < endWateringTime) { 
+        waterPlant();
+    }
 
     uploadSensorReading();
     // updateTwitterStatus();
