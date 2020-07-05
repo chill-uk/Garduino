@@ -143,6 +143,7 @@ void definePins() {
     pinMode(sensorPowerPin, OUTPUT);
     digitalWrite(sensorPowerPin, LOW);
     pinMode(lowWaterIndicatorPin, INPUT_PULLUP);
+//    digitalWrite(lowWaterIndicatorPin, HIGH);
     pinMode(configModePin, INPUT_PULLUP);
 }
 
@@ -235,6 +236,7 @@ void waterPlant() {
     int currentWateringTime = 0;
     int debugTimeMeasurement = millis();
     startMoistureLevel = readMoistureSensor();
+    Serial.print("Waterlevel: "); Serial.println(waterLevel);
 
     if (soilMoistureLevel < failsafeMoistureLevel) {
         Serial.println("Moisture Sensor broken or disconnected");
@@ -306,9 +308,8 @@ void connectWifi()
     int startWifiConnectionTime = millis();
     Serial.print("Connection time left = ");
     while ((WiFi.status() != WL_CONNECTED) && (currentWifiConnectionTime <= (maxWifiConnectionTime*1000))) {
-        WiFi.status();
+//        WiFi.status();
         currentWifiConnectionTime = (millis() - startWifiConnectionTime);
-        yield();
         // try and print seconds into Serial output
         int countDownSeconds = (currentWifiConnectionTime/1000);
         if (countDownSeconds == countDownTimer) {
@@ -316,6 +317,7 @@ void connectWifi()
             Serial.print("..");
             countDownTimer++;
         }
+        yield();
     }
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("");
@@ -462,7 +464,7 @@ void setup() {
     if (configModePin == HIGH) {
         configMode();
     }
-
+    Serial.println(readWaterLevel());
     readExtRTC();
 
     checkBatteryLevel();
