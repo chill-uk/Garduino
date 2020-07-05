@@ -59,8 +59,11 @@ int lowWaterIndicatorPin = D7;   // Low water level indicator
 int configModePin = D8;          // Button to enable booting into diagnostic mode
 
 // [Moisture Sensor variables]
-// bool capacitiveSensor = true;  // Uncomment this if you have a capacitive soil moisture sensor
+bool waterLevel;
+bool capacitiveSensor = false;  // Set to true if you have a capacitive soil moisture sensor
+uint16_t startMoistureLevel;
 uint16_t soilMoistureLevel;
+uint16_t currentMoistureLevel;
 uint16_t failsafeMoistureLevel = 3;  // Moisture Level of dry soil
 uint16_t minMoistureLevel = 30;      // Moisture Level of dry soil
 uint16_t maxMoistureLevel = 70;      // Moisture Level of wet soil
@@ -68,8 +71,8 @@ uint16_t maxWateringTime = 10000;    // 10 Seconds
 
 // [Start and End watering times]
 // I might want to perform a sunrise/sunset api call to automate this.
-uint16_t startWateringTime = 08;
-uint16_t endWateringTime = 20;
+uint16_t startWateringTimeHour = 8;
+uint16_t endWateringTimeHour = 20;
 
 // [Light Sensor]
 uint16_t luxBH1750FVI;
@@ -105,6 +108,9 @@ uint16_t interval = 900;       // 15 Mins
 
 // [Time structure]
 time_t t;
+
+// [RTC settings]
+bool RTCSet = false;
 
 // [Deep sleep time with compensation]
 unsigned long sleepTime;              // Calculated sleep time variable
@@ -152,36 +158,65 @@ void disablePower(int Pin) {
     }
 }
 
+uint16_t readMoistureSensor() {
+    // Read sensor value(s)
+    uint16_t sensorValue = analogRead(moistureLevelSensorPin);
+    if (capacitiveSensor == true) {
+        // Map capacitive readings to percentages
+        soilMoistureLevel = map(sensorValue, 1400, 3400, 0, 100);
+    }
+    else {
+        // Map conductive reading to percentages
+        soilMoistureLevel = map(sensorValue, 0, 1023, 0, 100);
+    }
+    return soilMoistureLevel;
+}
+
+bool readWaterLevel() {
+  waterLevel = digitalRead(lowWaterIndicatorPin);
+  return waterLevel;
+}
+
 void sensorReadBH1750FVI() {
+    // Read sensor value(s)
     luxBH1750FVI = LightSensor.GetLightIntensity();
+    // Sleep?
+
     Serial.println("Lux: " + String(luxBH1750FVI));
+    Serial.println("----------------------------------");
 }
 
 void sensorReadBME280() {
+    // Read sensor value(s)
     temperatureBME280 = bme.readTemperature();
     pressureBME280 = bme.readPressure() / 100.0F;
     altitudeBME280 = bme.readAltitude(SEALEVELPRESSURE_HPA);
     humidityBME280 = bme.readHumidity();
     // Sleep?
+
     Serial.println("Air Temperature = " + String(temperatureBME280) + " *C");
     Serial.println("Air Pressure = " + String(pressureBME280) + " hPa");
     Serial.println("Approx. Altitude = " + String(altitudeBME280) + " m");
     Serial.println("Air Humidity = " + String(humidityBME280) + " %");
-    // }
+    Serial.println("----------------------------------");
 }
 
 void sensorReadMAX17043() {
+    // Read sensor value(s)
     batteryPercentageMAX17043 = (FuelGauge.percent());
     regulatedVoltageMAX17043 = (FuelGauge.adc());
     batteryVoltageMAX17043 = ((FuelGauge.voltage())/1000);
     regulatedVoltageMAX17043 = (regulatedVoltageMAX17043/1000);
     FuelGauge.sleep();
+
     Serial.println("Battery Voltage = " + String(batteryVoltageMAX17043) + "V");
     Serial.println("Battery Percentage = " + String(batteryPercentageMAX17043) + "%");
     Serial.println("Regulated Voltage = " + String(regulatedVoltageMAX17043) + "V");
+    Serial.println("----------------------------------");
 }
 
 void sensorReadINA219() {
+    // Read sensor value(s)
     solarShuntVoltage = ina219.getShuntVoltage_mV();
     solarBusVoltage = ina219.getBusVoltage_V();
     solarCurrent_mA = ina219.getCurrent_mA();
@@ -193,62 +228,44 @@ void sensorReadINA219() {
     Serial.print("Load Voltage:  "); Serial.print(solarLoadVoltage); Serial.println(" V");
     Serial.print("Current:       "); Serial.print(solarCurrent_mA); Serial.println(" mA");
     Serial.print("Power:         "); Serial.print(solarPower_mW); Serial.println(" mW");
-    Serial.println("");
-}
-
-void readMoistureSensor() {
-    sensorValue = analogRead(moistureLevelSensorPin);
-    if (capacitiveSensor == true) {
-        // Map capacitive readings to percentages
-        soilMoisureLevel = map(sensorValue, 1400, 3400, 0, 100);
-    }
-    else {
-        // Map conductive reading to percentages
-        soilMoisureLevel = map(sensorValue, 0, 1023, 0, 100);
-    }
-    Serial.print("Soil Moisture Level: "); Serial.println(soilMoistureLevel);
-    return soilMoistureLevel;
+    Serial.println("----------------------------------");
 }
 
 void waterPlant() {
-    int currentMoistureLevel = 0;
     int currentWateringTime = 0;
     int debugTimeMeasurement = millis();
-    
-    if ((failsafeMoistureLevel < soilMoistureLevel ) && (soilMoistureLevel <= minMoistureLevel)) {
-        Serial.println("Start of watering");
-        int startWateringTime = millis();
-        enablePower(waterPumpPin);
-        while ((currentMoistureLevel <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime) && (digitalRead(lowWaterIndicatorPin) == HIGH)) {
-            currentWateringTime = millis() - startWateringTime;
-            currentMoistureLevel = readMoistureSensor();
-            yield();
-        }
-        disablePower(waterPumpPin);
-    }
+    startMoistureLevel = readMoistureSensor();
 
-// clean the following code up a bit
-    if (soilMoistureLevel <= failsafeMoistureLevel) {
+    if (soilMoistureLevel < failsafeMoistureLevel) {
         Serial.println("Moisture Sensor broken or disconnected");
     }
-    if ((soilMoistureLevel <= minMoistureLevel) && (soilMoistureLevel > failsafeMoistureLevel)) {
-        Serial.println("Plant needed watering");
-        Serial.print("Moisture Level after watering: "); Serial.println(currentMoistureLevel);
-        Serial.print("Moisture Level change: "); Serial.println(currentMoistureLevel - soilMoistureLevel);  
+    
+    else if ((failsafeMoistureLevel <= soilMoistureLevel) && (soilMoistureLevel <= minMoistureLevel)) {
+        Serial.println("Start of watering");
+        // uint16_t currentMoistureLevel = readMoistureSensor();
+        int startWateringTime = millis();
+        while ((readMoistureSensor() <= maxMoistureLevel) && (currentWateringTime <= maxWateringTime) && (readWaterLevel() == HIGH)) {
+            enablePower(waterPumpPin);
+            currentWateringTime = millis() - startWateringTime;
+            delay(250); // I tried using yeild(); but I kept getting random LOW values on readWaterLevel(), which exited the loop.
+        }
+        disablePower(waterPumpPin);
+        Serial.print("Moisture Level after watering: "); Serial.println(soilMoistureLevel);
+        Serial.print("Moisture Level change: "); Serial.println(soilMoistureLevel - startMoistureLevel);  
         Serial.println("Watering time: " + String(currentWateringTime));
     }
-    if ((soilMoistureLevel > minMoistureLevel) && (soilMoistureLevel <= (maxMoistureLevel+50))) {
+
+    else if ((minMoistureLevel < startMoistureLevel) && (startMoistureLevel <= (maxMoistureLevel+3))) {
         Serial.println("Plant is happy");
     }
-    if (soilMoistureLevel > (maxMoistureLevel+50)) {
+    else if (startMoistureLevel > (maxMoistureLevel+3)) {
         Serial.println("Plant is too wet");
     }
-    if (digitalRead(lowWaterIndicatorPin) == LOW) {
+    if (waterLevel == LOW) {
         Serial.println();
         Serial.println("Water tank is low");
     }
-    Serial.println();
-    Serial.print("(debug) Execute time: "); Serial.println(millis() - debugTimeMeasurement);
+    Serial.println("----------------------------------");
 }
 
 void checkBatteryLevel() {
@@ -277,7 +294,7 @@ void checkBatteryLevel() {
 
 void connectWifi()
 {
-    int maxWifiConnectionTime = 20;
+    int maxWifiConnectionTime = 10;
     int countDownTimer = 0;
 
     WiFi.mode(WIFI_STA);
@@ -302,33 +319,38 @@ void connectWifi()
     }
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("");
-        Serial.print("WiFi connected in "); Serial.print(currentWifiConnectionTime);    Serial.println("Seconds");
+        Serial.print("WiFi connected in "); Serial.print(currentWifiConnectionTime); Serial.println("Seconds");
     }
     else {
         Serial.println("");
-        Serial.print("Couldn't connect to wifi within the allocated time ("); Serial.print(maxWifiConnectionTime);    Serial.println("Seconds)");
+        Serial.print("Couldn't connect to wifi within the allocated time ("); Serial.print(maxWifiConnectionTime); Serial.println(" Seconds)");
         Serial.println("Please adjust the maxWifiConnectionTime or imporve singal strength");
-         disablePower(sensorPowerPin);  
-         ESP.deepSleep((15e6), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
     }
+    Serial.println("----------------------------------");
 }
 
 void disconnectWifi() {
-  WiFi.disconnect(true);
-  delay(1);
-  Serial.println(WiFi.disconnect());
+    WiFi.disconnect(true);
+    delay(1);
+    Serial.print("Wifi disconnected: "); Serial.println(WiFi.disconnect() ? "YES" : "NO");
+    Serial.println("----------------------------------");
 }
 
 void enterDeepSleep() {
-    // WAKE_RF_DISABLED to keep the WiFi radio disabled when it wakes up
     disconnectWifi();
-
-    Serial.print("Sleep time: ");
-    sleepTime = ((interval-(extRTC.get()%interval))*(timeErrorAdjustment));  // Sleep time in milliseconds (mS)
-    Serial.print(sleepTime/1000); // sleep time in seconds (S)
-    Serial.println(" seconds");
-    disablePower(sensorPowerPin);  
-    ESP.deepSleep(((sleepTime)*1000), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
+    if (RTCSet = true) {
+        // This calculates the amount of time needed to sleep to wake up 
+        sleepTime = ((interval-(extRTC.get()%interval))*(timeErrorAdjustment));  // Sleep time in milliseconds (mS)
+        Serial.print("Sleep time: "); Serial.print(sleepTime/1000); Serial.println(" seconds");
+        // use [WAKE_RF_DISABLED] to keep the WiFi radio disabled when it wakes up
+        ESP.deepSleep(((sleepTime)*1000), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
+    }
+    else {
+        Serial.print("Sleep time: 15 minutes");
+        // use [WAKE_RF_DISABLED] to keep the WiFi radio disabled when it wakes up
+        ESP.deepSleep((15e6), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
+    }
+    Serial.println("----------------------------------");
 }
 
 void uploadSensorReading()
@@ -357,6 +379,7 @@ void uploadSensorReading()
     else{
         Serial.println("Problem updating channel. HTTP error code " + String(x));
     }
+    Serial.println("----------------------------------");
 }
 
 void setExternalRTC() {
@@ -378,13 +401,12 @@ void setExternalRTC() {
     Serial.print("Internal post-epoch"); Serial.println(timeClient.getEpochTime());
     if(timeStatus() != timeSet){
         Serial.println("Unable to sync with the RTC");
-         disablePower(sensorPowerPin);  
-         ESP.deepSleep((15e6), WAKE_RF_DEFAULT); // sleep time in microseconds (uS)
-
     }
     else {
         Serial.println("RTC has set the system time");
+        RTCSet = true;
     }
+    Serial.println("----------------------------------");
 }
 
 void readExtRTC() {
@@ -406,8 +428,7 @@ void readExtRTC() {
     Serial.println("extRTC seems fine"); 
     setSyncProvider(extRTC.get);   // the function to get the time from the RTC
     }
-
-
+    Serial.println("----------------------------------");
 }
 
 void configMode() {
@@ -451,13 +472,18 @@ void setup() {
     sensorReadINA219();
 
     enablePower(moistureLevelPowerPin);
-    // digitalWrite(moistureLevelPowerPin, HIGH);
-    readMoistureSensor();
-    if (startWateringTime <= (hour(t)) && (hour(t) < endWateringTime) { 
+
+    Serial.print("Soil Moisture Level: "); Serial.println(readMoistureSensor());
+    Serial.println("----------------------------------");
+    
+    if ((startWateringTimeHour <= (hour(t))) && ((hour(t)) < endWateringTimeHour)) { 
         waterPlant();
     }
+    else {
+    Serial.println("Not watering - Outside of watering hours.");
+    Serial.println("----------------------------------");
+    }
     disablePower(moistureLevelPowerPin);
-    // digitalWrite(moistureLevelPowerPin, LOW);
 
     uploadSensorReading();
     // updateTwitterStatus();
